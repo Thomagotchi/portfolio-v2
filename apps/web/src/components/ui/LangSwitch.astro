@@ -1,0 +1,47 @@
+---
+// Language switch: FR / EN, the current one in text colour. Links go to the same page in the other language
+// (`alt` from Base). Visible codes, full names for screen readers ("EN" is part of "English": label in name).
+import { LOCALES, langOf, useT, type Lang } from '@/i18n';
+
+interface Props { alt: Record<Lang, string>; class?: string }
+const { alt, class: cls } = Astro.props;
+const lang = langOf(Astro.currentLocale);
+const t = useT(lang);
+---
+<ul role="list" class:list={['lsw', cls]} aria-label={t.lang.label}>
+  {LOCALES.map((l) => (
+    <li>
+      <a href={alt[l]} hreflang={l} lang={l} aria-current={l === lang ? 'true' : undefined}>
+        <span aria-hidden="true">{l.toUpperCase()}</span><span class="sr-only">{t.lang[l]}</span>
+      </a>
+    </li>
+  ))}
+</ul>
+
+<style lang="scss">
+  .lsw {
+    display: flex;
+    align-items: center;
+    padding: 0;
+    list-style: none;
+
+    @include text(mono);
+
+    li + li::before {
+      content: '/';
+      color: var(--muted);
+    }
+
+    a {
+      display: inline-grid;
+      place-items: center;
+      min-width: 32px;
+      min-height: 44px;
+      color: var(--muted);
+      text-decoration: none;
+      transition: color var(--duration-fast);
+
+      &:is(:hover, :focus-visible), &[aria-current] { color: var(--text); }
+    }
+  }
+</style>

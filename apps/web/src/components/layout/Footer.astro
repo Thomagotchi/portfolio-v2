@@ -4,22 +4,24 @@
 import Button from '@/components/ui/Button.astro';
 import Mark from '@/components/ui/Mark.astro';
 import type { Site } from '@/lib/types';
+import { useT } from '@/i18n';
 
 interface Props { site: Site }
 const { site } = Astro.props;
 const c = site.contact;
+const t = useT(Astro.currentLocale).footer;
 ---
 <footer class="ft" id="contact" data-footer>
   <div class="ft__field" data-terrain aria-hidden="true"></div>
   <div class="wrap ft__in">
-    <p class="tag-lg">{site.footerLabel ?? 'Write to'}</p>
-    <a class="ft__mail" href={`mailto:${c.email}`} data-copy={c.email} style={`--chars:${Math.max(c.email.length, 19)}`}>{c.email}</a>
+    <p class="tag-lg">{site.footerLabel ?? t.writeTo}</p>
+    <a class="ft__mail" href={`mailto:${c.email}`} data-copy={c.email} data-copied={t.copied} data-copied-sr={t.copiedSr(c.email)} style={`--chars:${Math.max(c.email.length, 19)}`}>{c.email}</a>
     <p class="sr-only" aria-live="polite" data-copy-status></p>
     <dl class="ft__ro" data-brackets>
-      <div><dt class="tag">Local time · {c.place}</dt><dd><time data-clock data-tz={c.tz}>--:--:--</time></dd></div>
-      <div><dt class="tag">Reply</dt><dd>{c.reply}</dd></div>
-      {c.lighthouse && <div><dt class="tag">Lighthouse</dt><dd>{c.lighthouse}</dd></div>}
-      <div><dt class="tag">Status</dt><dd><i class="ft__px" aria-hidden="true"></i>{c.status}</dd></div>
+      <div><dt class="tag">{t.localTime} · {c.place}</dt><dd><time data-clock data-tz={c.tz}>--:--:--</time></dd></div>
+      <div><dt class="tag">{t.reply}</dt><dd>{c.reply}</dd></div>
+      {c.lighthouse && <div><dt class="tag">{t.lighthouse}</dt><dd>{c.lighthouse}</dd></div>}
+      <div><dt class="tag">{t.status}</dt><dd><i class="ft__px" aria-hidden="true"></i>{c.status}</dd></div>
     </dl>
   </div>
   <div class="ft__bar">
@@ -27,11 +29,11 @@ const c = site.contact;
     <span>© {new Date().getFullYear()} {site.name}</span>
     <span class="ft__st"><i class="ft__px" aria-hidden="true"></i>{c.status}</span>
     {site.socials?.length ? (
-      <ul role="list" class="ft__soc" aria-label="Elsewhere">
+      <ul role="list" class="ft__soc" aria-label={t.elsewhere}>
         {site.socials.map((s) => <li><Button href={s.href} variant="link" rel="me noopener">{s.label}</Button></li>)}
       </ul>
     ) : null}
-    <Button href="#top" variant="link" class="ft__up">Back to top ↑</Button>
+    <Button href="#top" variant="link" class="ft__up">{t.top}</Button>
   </div>
 </footer>
 
@@ -63,8 +65,8 @@ const c = site.contact;
     e.preventDefault();
     const addr = mail.dataset.copy!;
     navigator.clipboard.writeText(addr).then(() => {
-      status.textContent = `${addr} copied to the clipboard`;
-      decode(mail, 'Copied to clipboard', 700);
+      status.textContent = mail.dataset.copiedSr!;
+      decode(mail, mail.dataset.copied!, 700);
       setTimeout(() => decode(mail, addr, 700), 1800);
     }, () => { location.href = mail.href; });
   });

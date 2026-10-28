@@ -1,28 +1,7 @@
 ---
-import Base from '@/layouts/Base.astro';
-import Blocks from '@/components/sections/Blocks.astro';
-import { getPages, getSite } from '@/lib/sanity';
-import type { Page, FaqBlock, OffersBlock } from '@/lib/types';
-import { cleanPath } from '@/lib/url';
+import Page from '@/views/Page.astro';
+import { pagePaths } from '@/lib/paths';
 
-export async function getStaticPaths() {
-  const pages = await getPages();
-  return pages.map((page) => ({ params: { slug: page.slug === 'index' ? undefined : page.slug }, props: { page } }));
-}
-
-const { page } = Astro.props as { page: Page };
-const site = await getSite();
-const faqs = page.blocks.filter((b): b is FaqBlock => b._type === 'faq').flatMap((b) => b.items);
-const offers = page.blocks.filter((b): b is OffersBlock => b._type === 'offers').flatMap((b) => b.items);
-const jsonLd = [
-  { '@type': 'WebPage', name: page.title, url: new URL(cleanPath(Astro.url.pathname), Astro.site).href, dateModified: page._updatedAt },
-  ...(offers.length ? [{
-    '@type': 'ProfessionalService', name: site.name, url: Astro.site?.href, areaServed: 'FR', provider: { '@id': `${Astro.site}#person` },
-    makesOffer: offers.map((o) => ({ '@type': 'Offer', itemOffered: { '@type': 'Service', name: o.title, description: o.meta } })),
-  }] : []),
-  ...(faqs.length ? [{ '@type': 'FAQPage', mainEntity: faqs.map((f) => ({ '@type': 'Question', name: f.question, acceptedAnswer: { '@type': 'Answer', text: f.answer } })) }] : []),
-];
+export const getStaticPaths = () => pagePaths('fr');
 ---
-<Base title={page.title} site={site} seo={page.seo} jsonLd={jsonLd}>
-  <Blocks blocks={page.blocks} />
-</Base>
+<Page {...Astro.props} lang="fr" />

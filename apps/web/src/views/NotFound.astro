@@ -1,0 +1,249 @@
+---
+// 404: one viewport. The frame sits on the frame line with an empty notch; a Canvas 2D dot field fills it
+// and draws 404 in brighter dots sampled from the heading font; dots spring away from the pointer. The red
+// pixel wanders: drag it into the notch (tap it on touch, or press "Put it back") and the frame completes,
+// the heading decodes to the found line. Static under reduced motion (one frame, the pixel lands at once).
+import Base from '@/layouts/Base.astro';
+import Button from '@/components/ui/Button.astro';
+import Headline from '@/components/ui/Headline.astro';
+import Window from '@/components/ui/Window.astro';
+import { getNotFound, getSite } from '@/lib/sanity';
+import { localize, useT, type Lang } from '@/i18n';
+
+// One static 404 (French, the default locale), served for every unknown URL; the switch leads to /en.
+interface Props { lang: Lang }
+const { lang } = Astro.props;
+const t = useT(lang).notFound;
+const [site, nf] = await Promise.all([getSite(lang), getNotFound(lang)]);
+---
+<Base title={t.title} site={site} seo={nf.seo ?? { noindex: true }} path="/">
+  <section class="nf" data-nf data-found-lead={nf.found.lead} data-found-muted={nf.found.muted ?? ''} data-found-tail={nf.found.tail ?? ''}>
+    <Window mode="static" class="nf__win"><canvas class="nf__cv" aria-hidden="true"></canvas></Window>
+    <p class="mono nf__hint" aria-hidden="true"><span class="nf__fine">{t.hintFine}</span><span class="nf__touch">{t.hintTouch}</span></p>
+    <div class="wrap nf__c">
+      <div class="rise"><p class="mono" data-req>{nf.label} · {t.status}</p></div>
+      <div class="rise"><Headline heading={nf.heading} as="h1" class="nf__h" /></div>
+      <div class="rise"><p class="lede">{nf.lede}</p></div>
+      <div class="rise nf__ctas">
+        <div>
+          <Button href="/">{t.home}</Button>
+          <Button href="/#work" variant="secondary">{t.work}</Button>
+        </div>
+      </div>
+      <div class="rise">
+        <ul role="list" class="nf__l">
+          {nf.links.map((l) => <li><a href={localize(l.href, lang)}>{l.label}</a></li>)}
+          <li><button type="button" class="nf__put" data-put>{t.putBack}</button></li>
+        </ul>
+      </div>
+      <p class="sr-only" aria-live="polite" data-said></p>
+    </div>
+  </section>
+</Base>
+
+<script>
+  import { canvasLoop } from '@/scripts/dots';
+  import { decode } from '@/scripts/decode';
+  import { reduceMotion } from '@/scripts/gsap';
+
+  const nf = document.querySelector<HTMLElement>('[data-nf]');
+  if (nf) {
+    const cv = nf.querySelector<HTMLCanvasElement>('canvas')!;
+    const win = nf.querySelector<HTMLElement>('.win')!;
+    const h1 = nf.querySelector<HTMLElement>('h1')!;
+    const req = nf.querySelector<HTMLElement>('[data-req]')!;
+    const rm = reduceMotion();
+    type Dot = { x0: number; y0: number; x: number; y: number; vx: number; vy: number; on: boolean };
+    let dots: Dot[] = [];
+    let home = false, held = false;
+    const ptr = { x: -999, y: -999 };
+    const px = { x: 0, y: 0, tx: 0, ty: 0, t: 0, homing: false };
+
+    decode(req, `GET ${location.pathname} · 404 Not found`, 700);
+
+    // Dot grid; the ones inside "404" are lit. The glyphs are drawn on a canvas one pixel per dot (the grid
+    // itself), so sampling reads a few thousand pixels, not the full-size bitmap.
+    const build = (w: number, h: number) => {
+      if (!w || !h) return;
+      const step = w < 640 ? 9 : 12;
+      const cols = Math.floor(w / step), rows = Math.floor(h / step);
+      const o = document.createElement('canvas'), oc = o.getContext('2d', { willReadFrequently: true })!;
+      o.width = cols; o.height = rows;
+      // Glyph box: the larger free area, beside the text block or above it (in grid units), so "404" never
+      // crowds the heading at any size.
+      const c = cv.getBoundingClientRect();
+      const kids = [...nf.querySelectorAll<HTMLElement>('.nf__c > :not(.sr-only)')].map((k) => k.getBoundingClientRect());
+      const txt = { top: Math.min(...kids.map((k) => k.top)) - c.top, right: Math.max(...kids.map((k) => k.right)) - c.left };
+      const pad = 0.06;
+      const side = { x: txt.right / w + pad, y: 0.08, w: 1 - txt.right / w - pad * 1.6, h: 0.62 };
+      const top = { x: pad, y: pad * 0.8, w: 1 - pad * 2, h: Math.max(0, txt.top / h - pad * 1.6) };
+      const fit = (b: typeof side) => Math.min(b.h * h * 1.15, (b.w * w) / 2.1); // "404" is ≈ 2.1 em wide
+      const box = fit(side) >= fit(top) ? side : top;
+      const bw = box.w * cols, bh = box.h * rows;
+      const face = getComputedStyle(h1).fontFamily;
+      oc.font = `500 100px ${face}`;
+      const fs = Math.min(bh * 1.15, (100 * bw) / oc.measureText('404').width);
+      oc.font = `500 ${fs}px ${face}`;
+      oc.textAlign = 'center';
+      oc.textBaseline = 'middle';
+      oc.fillText('404', box.x * cols + bw / 2, box.y * rows + bh / 2 + fs * 0.04);
+      const a = oc.getImageData(0, 0, cols, rows).data;
+      dots = [];
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const x = c * step + step / 2, y = r * step + step / 2;
+          dots.push({ x0: x, y0: y, x, y, vx: 0, vy: 0, on: a[(r * cols + c) * 4 + 3] > 128 });
+        }
+      }
+      if (!px.x) Object.assign(px, { x: w * 0.3, y: h * 0.3, tx: w * 0.3, ty: h * 0.3 });
+    };
+
+    const land = () => {
+      if (home) return;
+      home = true; px.homing = false;
+      nf.classList.add('is-found');
+      win.classList.add('is-home');
+      const { foundLead: lead, foundMuted: muted, foundTail: tail } = nf.dataset;
+      const em = document.createElement('em');
+      em.textContent = muted ?? '';
+      h1.replaceChildren(lead ?? '', ...(muted ? [' ', em] : []), tail ? ` ${tail}` : '');
+      if (muted) decode(em, muted, 800);
+      decode(req, 'GET / · 200 OK', 700);
+      nf.querySelector('[data-said]')!.textContent = `${lead} ${muted} ${tail}`.trim();
+    };
+
+    const loop = canvasLoop(cv, ({ ctx, w, h, t, css }) => {
+      ctx.clearRect(0, 0, w, h);
+      const fg = css('--text'), mu = css('--muted'), ac = css('--accent');
+      for (const d of dots) {
+        if (!rm) {
+          const dx = d.x - ptr.x, dy = d.y - ptr.y, r = Math.hypot(dx, dy);
+          if (r < 90 && r > 0.1) { const f = (1 - r / 90) * 2.2; d.vx += (dx / r) * f; d.vy += (dy / r) * f; }
+          d.vx += (d.x0 - d.x) * 0.05; d.vy += (d.y0 - d.y) * 0.05; d.vx *= 0.82; d.vy *= 0.82; d.x += d.vx; d.y += d.vy;
+        }
+      }
+      // Two batched paths (lit, unlit): one fill each instead of thousands of fillRect calls.
+      for (const lit of [false, true]) {
+        const s = lit ? 2.6 : 1.2;
+        ctx.beginPath();
+        for (const d of dots) if ((d.on && !home) === lit) ctx.rect(d.x - s / 2, d.y - s / 2, s, s);
+        ctx.fillStyle = lit ? fg : mu;
+        ctx.globalAlpha = lit ? 0.95 : 0.28;
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+      if (home) return;
+      if (!held) {
+        if (px.homing) {
+          px.x += -px.x * 0.08; px.y += -px.y * 0.08;
+          if (Math.hypot(px.x, px.y) < 2) land();
+        } else {
+          if (!rm && t - px.t > 2600) { px.t = t; px.tx = w * (0.08 + Math.random() * 0.84); px.ty = h * (0.08 + Math.random() * 0.5); }
+          px.x += (px.tx - px.x) * 0.012; px.y += (px.ty - px.y) * 0.012;
+        }
+      }
+      ctx.fillStyle = ac;
+      ctx.fillRect(px.x - 5, px.y - 5, 10, 10);
+    }, build);
+
+    const pos = (e: PointerEvent) => { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+    nf.addEventListener('pointermove', (e) => { [ptr.x, ptr.y] = pos(e); if (held) { px.x = ptr.x; px.y = ptr.y; } });
+    nf.addEventListener('pointerleave', () => { ptr.x = ptr.y = -999; });
+    nf.addEventListener('pointerdown', (e) => {
+      const [x, y] = pos(e);
+      if (home || Math.hypot(x - px.x, y - px.y) > 28) return;
+      if (e.pointerType === 'touch') { px.homing = true; loop.redraw(); return; }
+      held = true;
+      nf.setPointerCapture(e.pointerId);
+      nf.classList.add('is-held');
+    });
+    nf.addEventListener('pointerup', () => {
+      if (!held) return;
+      held = false;
+      nf.classList.remove('is-held');
+      if (Math.hypot(px.x, px.y) < 44) land();
+      else { px.tx = px.x; px.ty = px.y; }
+    });
+    nf.querySelector('[data-put]')!.addEventListener('click', () => {
+      if (rm) { land(); loop.redraw(); return; }
+      px.homing = true;
+    });
+  }
+</script>
+
+<style lang="scss">
+  .nf {
+    --win-inset: var(--frame);
+    --pad: clamp(24px, 7svh, 88px);
+
+    position: relative;
+    isolation: isolate;
+    display: grid;
+    align-content: end;
+    min-height: calc(100svh - var(--header-h));
+    padding-block: calc(var(--frame) + var(--pad));
+
+    &:global(.is-held) { cursor: grabbing; }
+  }
+
+  .nf__cv { display: block; width: 100%; height: 100%; }
+
+  .nf__hint {
+    position: absolute;
+    top: calc(var(--frame) + var(--space-4));
+    right: calc(var(--frame) + var(--space-4));
+    color: var(--muted);
+    text-transform: uppercase;
+    transition: opacity var(--duration-fast);
+  }
+
+  .nf:global(.is-found) .nf__hint { opacity: 0; }
+  .nf__touch { display: none; }
+
+  @media (hover: none) {
+    .nf__fine { display: none; }
+    .nf__touch { display: inline; }
+  }
+
+  .nf__c {
+    position: relative;
+    display: grid;
+    justify-items: start;
+    gap: var(--space-head);
+    max-width: calc(520px + var(--margin) * 2);
+    padding-inline: max(calc(var(--margin) + var(--tx)), calc(var(--frame) + var(--space-5))) var(--margin);
+    pointer-events: none;
+
+    > * { pointer-events: auto; }
+
+    // The glyphs take whatever room the text leaves (beside it on wide frames, above it on tall ones).
+  }
+
+  .nf__ctas > div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-4);
+    margin-top: var(--space-2);
+    margin-left: calc(var(--tx) * -1);
+  }
+
+  .nf__l {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-5);
+
+    a { color: var(--muted); }
+    a:is(:hover, :focus-visible) { color: var(--text); }
+  }
+
+  .nf__put {
+    padding-bottom: 3px;
+    color: var(--muted);
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+
+    @include text(mono);
+  }
+
+  .nf:global(.is-found) .nf__put { visibility: hidden; }
+</style>

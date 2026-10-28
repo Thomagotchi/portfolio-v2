@@ -1,0 +1,301 @@
+---
+// Contact: a brief in five fieldsets beside a live readout (sticky on lg, a 2-column strip above the form
+// on md, after it on mobile). Submit → actions.contact (server). On success the panel closes into the
+// mark and the confirmation decodes. ?type=&budget=&timing=&msg= pre-fill the form (pricing → contact).
+import Base from '@/layouts/Base.astro';
+import Button from '@/components/ui/Button.astro';
+import PageHeader from '@/components/ui/PageHeader.astro';
+import Section from '@/components/ui/Section.astro';
+import Window from '@/components/ui/Window.astro';
+import Chips from '@/components/form/Chips.astro';
+import Field from '@/components/form/Field.astro';
+import Fieldset from '@/components/form/Fieldset.astro';
+import { getContact, getSite } from '@/lib/sanity';
+import { useT, type Lang } from '@/i18n';
+
+// Routes: pages/contact.astro (fr), pages/en/contact.astro.
+interface Props { lang: Lang }
+const { lang } = Astro.props;
+const t = useT(lang).contact;
+const [site, ct] = await Promise.all([getSite(lang), getContact(lang)]);
+const opts = (list: string[]) => list.map((label) => ({ label }));
+const rows: [string, string][] = [['type', t.project], ['budget', t.budget], ['timing', t.timing], ['from', t.from], ['msg', t.message]];
+const jsonLd = [{ '@type': 'ContactPage', name: t.title, about: { '@id': `${Astro.site}#person` } }];
+---
+<Base title={t.title} site={site} seo={ct.seo} jsonLd={jsonLd} path="/contact">
+  <PageHeader label={ct.label} heading={ct.heading} lede={ct.lede} />
+
+  <Section label={t.brief}>
+    <div class="cf" data-contact>
+      <div class="cf__main">
+        <form class="cf__form" novalidate data-form data-err={JSON.stringify(t.err)}>
+          <input type="hidden" name="lang" value={lang} />
+          <Fieldset n={1} legend={t.project} name="type"><Chips name="type" multi options={opts(ct.types)} describedby="type-err" /></Fieldset>
+          <Fieldset n={2} legend={t.budget}><Chips name="budget" options={opts(ct.budgets)} /></Fieldset>
+          <Fieldset n={3} legend={t.timing}><Chips name="timing" options={opts(ct.timings)} /></Fieldset>
+          <Fieldset n={4} legend={t.you}>
+            <div class="cf__you">
+              <Field name="name" label={t.name} placeholder={t.namePh} autocomplete="name" required />
+              <Field name="email" label={t.email} type="email" placeholder={t.emailPh} autocomplete="email" required />
+              <Field name="company" label={t.company} placeholder={t.companyPh} autocomplete="organization" />
+            </div>
+          </Fieldset>
+          <Fieldset n={5} legend={t.message}>
+            <Field name="msg" label={t.need} placeholder={t.needPh} textarea required />
+          </Fieldset>
+          <div class="cf__hp" aria-hidden="true"><label>Website <input type="text" name="website" tabindex="-1" autocomplete="off" /></label></div>
+          <div class="cf__go">
+            <Button type="submit" variant="accent" size="md" lgSize="lg">{t.submit}</Button>
+            <span class="muted small">{t.noNews} {site.contact.reply}.</span>
+          </div>
+          <p class="cf__fail" role="alert" data-fail></p>
+        </form>
+        <div class="cf__done" data-done hidden>
+          <Window manual class="is-in cf__win" />
+          <div class="cf__msg">
+            <h2 tabindex="-1" data-done-title>{ct.done.title}</h2>
+            <p class="muted">{ct.done.text}</p>
+            <Button variant="link" data-again>{t.again}</Button>
+          </div>
+        </div>
+        <noscript><p class="muted">{t.noJs} <a href={`mailto:${site.contact.email}`}>{site.contact.email}</a>.</p></noscript>
+      </div>
+
+      <aside class="ro" aria-label={t.yourBrief}>
+        <div class="ro__hd"><span class="tag">{t.yourBrief}</span><div class="ro__pb" aria-hidden="true">{rows.map(() => <i></i>)}</div></div>
+        {rows.map(([k, l]) => <div><span class="tag">{l}</span><b class="mono is-nil" data-r={k}>—</b></div>)}
+        <div><span class="tag">{useT(lang).footer.localTime} · {site.contact.place}</span><b class="mono"><time data-clock data-tz={site.contact.tz}>--:--:--</time></b></div>
+      </aside>
+    </div>
+  </Section>
+</Base>
+
+<script>
+  import { actions, isInputError } from 'astro:actions';
+  import { decode } from '@/scripts/decode';
+  import { reduceMotion } from '@/scripts/gsap';
+
+  const root = document.querySelector<HTMLElement>('[data-contact]');
+  if (root) {
+    const form = root.querySelector<HTMLFormElement>('[data-form]')!;
+    const done = root.querySelector<HTMLElement>('[data-done]')!;
+    const win = done.querySelector<HTMLElement>('.win')!;
+    const fail = root.querySelector<HTMLElement>('[data-fail]')!;
+    const segs = [...root.querySelectorAll<HTMLElement>('.ro__pb i')];
+    const out = (k: string) => root.querySelector<HTMLElement>(`[data-r="${k}"]`)!;
+    const field = (n: string) => form.elements.namedItem(n) as HTMLInputElement;
+    const okMail = (s: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(s);
+    const T = JSON.parse(form.dataset.err!) as Record<'type' | 'required' | 'email' | 'msg' | 'field', string>;
+    const checked = (n: string) => [...form.querySelectorAll<HTMLInputElement>(`[name="${n}"]:checked`)].map((i) => i.value);
+
+    // Readout: derived from the form, never stored. Values decode when they change.
+    const put = (k: string, v: string) => {
+      const el = out(k);
+      const text = v || '—';
+      if (el.dataset.v === text) return;
+      el.dataset.v = text;
+      el.classList.toggle('is-nil', !v);
+      decode(el, text, 500);
+    };
+    const sync = () => {
+      const type = checked('type'), name = field('name').value.trim(), email = field('email').value.trim(), msg = field('msg').value.trim();
+      put('type', type.join(' + '));
+      put('budget', checked('budget')[0] ?? '');
+      put('timing', checked('timing')[0] ?? '');
+      put('from', name || email ? `${name}${email ? ` <${email}>` : ''}` : '');
+      put('msg', msg.length > 60 ? `${msg.slice(0, 60)}…` : msg);
+      [type.length > 0, checked('budget').length > 0, checked('timing').length > 0, !!name && okMail(email), msg.length >= 20]
+        .forEach((on, i) => segs[i].classList.toggle('is-on', on));
+      root.querySelector('[data-count]')!.textContent = `${field('msg').value.length} / 1000`;
+    };
+
+    const setErr = (name: string, text: string) => {
+      const el = root.querySelector<HTMLElement>(`[data-err="${name}"]`);
+      if (!el) return;
+      el.closest('[data-field]')?.classList.toggle('is-err', !!text);
+      const input = form.querySelector<HTMLInputElement>(`[name="${name}"]`);
+      input?.setAttribute('aria-invalid', String(!!text));
+      el.textContent = text;
+      if (text) decode(el, text, 400);
+    };
+    const validate = () => {
+      const errs: Record<string, string> = {};
+      if (!checked('type').length) errs.type = T.type;
+      if (!field('name').value.trim()) errs.name = T.required;
+      const email = field('email').value.trim();
+      if (!okMail(email)) errs.email = email ? T.email : T.required;
+      if (field('msg').value.trim().length < 20) errs.msg = T.msg;
+      return errs;
+    };
+    const showErrs = (errs: Record<string, string>) => {
+      ['type', 'name', 'email', 'msg'].forEach((n) => setErr(n, errs[n] ?? ''));
+      const first = Object.keys(errs)[0];
+      if (first) form.querySelector<HTMLInputElement>(`[name="${first}"]`)?.focus();
+    };
+
+    form.addEventListener('input', (e) => {
+      const n = (e.target as HTMLInputElement).name;
+      if (n) setErr(n, '');
+      sync();
+    });
+
+    // Pre-fill from the query string: ?type=Design,Development&budget=…&timing=…&msg=…
+    const q = new URLSearchParams(location.search);
+    q.get('type')?.split(',').forEach((t) => { const i = form.querySelector<HTMLInputElement>(`[name="type"][value="${CSS.escape(t)}"]`); if (i) i.checked = true; });
+    for (const n of ['budget', 'timing']) {
+      const v = q.get(n);
+      const i = v && form.querySelector<HTMLInputElement>(`[name="${n}"][value="${CSS.escape(v)}"]`);
+      if (i) i.checked = true;
+    }
+    if (q.get('msg')) field('msg').value = q.get('msg')!.slice(0, 1000);
+    sync();
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      fail.textContent = '';
+      const errs = validate();
+      if (Object.keys(errs).length) return showErrs(errs);
+      const btn = form.querySelector<HTMLButtonElement>('[type="submit"]')!;
+      btn.disabled = true;
+      const { error } = await actions.contact(new FormData(form));
+      btn.disabled = false;
+      if (error) {
+        // The server checks again; its field errors map to this page's language.
+        if (isInputError(error)) showErrs(Object.fromEntries(Object.keys(error.fields).map((k) => [k, T[k as keyof typeof T] ?? T.field])));
+        else fail.textContent = error.message;
+        return;
+      }
+      // Window-close: the open frame shrinks into the mark, then the confirmation decodes.
+      form.hidden = true;
+      done.hidden = false;
+      const title = done.querySelector<HTMLElement>('[data-done-title]')!;
+      title.focus();
+      requestAnimationFrame(() => requestAnimationFrame(() => win.classList.remove('is-in')));
+      setTimeout(() => decode(title, title.dataset.text ?? title.textContent ?? '', 900), reduceMotion() ? 0 : 1300);
+    });
+
+    done.querySelector('[data-again]')!.addEventListener('click', () => {
+      form.reset();
+      win.classList.add('is-in');
+      done.hidden = true;
+      form.hidden = false;
+      sync();
+      form.querySelector<HTMLInputElement>('input')?.focus();
+    });
+  }
+</script>
+
+<style lang="scss">
+  .cf {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--cell);
+
+    @include mq(lg) {
+      grid-template-columns: minmax(0, 8fr) minmax(0, 4fr);
+      align-items: start;
+    }
+  }
+
+  .cf__form {
+    display: grid;
+    gap: calc(var(--cell) * 0.9);
+
+    @include mq(lg) { gap: var(--space-block); }
+  }
+
+  .cf__you {
+    display: grid;
+    gap: var(--space-5) var(--space-6);
+
+    @include mq(md) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+
+  .cf__hp { position: absolute; left: -9999px; }
+
+  .cf__go {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-4) var(--space-6);
+    margin-top: var(--space-5);
+  }
+
+  .cf__fail:empty { display: none; }
+  .cf__fail { color: var(--accent); }
+
+  // Success: the panel closes into the mark (Window, manual), the message sits under it.
+  .cf__done {
+    position: relative;
+    min-height: 420px;
+
+  }
+
+  .cf__msg {
+    position: absolute;
+    top: calc(50% + 64px);
+    right: 0;
+    left: 0;
+    display: grid;
+    justify-items: center;
+    gap: var(--space-3);
+    text-align: center;
+
+    h2 { @include text(h3); }
+  }
+
+  // Readout: after the form on mobile, a 2-column strip above it on md, sticky beside it on lg.
+  .ro {
+    display: grid;
+    background: var(--bg);
+    border: 1px solid var(--border);
+
+    @include mq(md) {
+      order: -1;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    @include mq(lg) {
+      position: sticky;
+      top: calc(var(--header-h) + var(--space-6));
+      order: 0;
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    > div {
+      display: grid;
+      gap: var(--space-2);
+      padding: var(--space-3) var(--space-4);
+      border-top: 1px solid var(--border);
+    }
+
+    > .ro__hd {
+      border-top: 0;
+
+      @include mq(md) { grid-column: 1 / -1; }
+
+      @include mq(lg) { grid-column: auto; }
+    }
+
+    b {
+      color: var(--text);
+      overflow-wrap: anywhere;
+
+      &:global(.is-nil) { color: var(--muted); }
+    }
+  }
+
+  .ro__pb {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: var(--space-1);
+
+    i {
+      height: 6px;
+      border: 1px solid var(--muted);
+      transition: background var(--duration-fast) var(--ease-soft), border-color var(--duration-fast);
+
+      &:global(.is-on) { background: var(--text); border-color: var(--text); }
+    }
+  }
+</style>

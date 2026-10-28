@@ -5,8 +5,11 @@ import { ActionError, defineAction } from 'astro:actions';
 import { z } from 'astro/zod';
 import { CONTACT_FROM, CONTACT_TO, RESEND_API_KEY } from 'astro:env/server';
 import { getContact, getSite } from '@/lib/sanity';
+import { langOf, useT } from '@/i18n';
 
+// Messages are the client's concern (the page shows them in its language); these are for logs only.
 const brief = z.object({
+  lang: z.enum(['fr', 'en']).optional(),
   type: z.array(z.string()).min(1, 'Pick at least one'),
   budget: z.string().optional(),
   timing: z.string().optional(),
@@ -25,15 +28,18 @@ export const server = {
     input: brief,
     handler: async (b) => {
       if (b.website) return { ok: true };
-      const page = await getContact();
+      const lang = langOf(b.lang);
+      const t = useT(lang).contact.err;
+      const page = await getContact(lang);
       const allowed = (list: string[], v?: string) => !v || list.includes(v);
       if (!b.type.every((t) => page.types.includes(t)) || !allowed(page.budgets, b.budget) || !allowed(page.timings, b.timing)) {
-        throw new ActionError({ code: 'BAD_REQUEST', message: 'Unknown option' });
+        throw new ActionError({ code: 'BAD_REQUEST', message: t.option });
       }
-      const site = await getSite();
+      const site = await getSite(lang);
+      // The email is for Thomas: always French labels, plus the language the visitor wrote from.
       const rows: [string, string | undefined][] = [
-        ['Project', b.type.join(' + ')], ['Budget', b.budget], ['Timing', b.timing],
-        ['From', `${b.name} <${b.email}>`], ['Company', b.company], ['Message', b.msg],
+        ['Projet', b.type.join(' + ')], ['Budget', b.budget], ['Délai', b.timing],
+        ['De', `${b.name} <${b.email}>`], ['Structure', b.company], ['Langue', lang.toUpperCase()], ['Message', b.msg],
       ];
       const text = rows.filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`).join('\n');
       if (!RESEND_API_KEY) {
@@ -52,7 +58,7 @@ export const server = {
           html: `<table>${rows.filter(([, v]) => v).map(([k, v]) => `<tr><th align="left">${k}</th><td>${esc(v!)}</td></tr>`).join('')}</table>`,
         }),
       });
-      if (!res.ok) throw new ActionError({ code: 'INTERNAL_SERVER_ERROR', message: 'The brief could not be sent. Write to the address in the footer.' });
+      if (!res.ok) throw new ActionError({ code: 'INTERNAL_SERVER_ERROR', message: t.send });
       return { ok: true };
     },
   }),

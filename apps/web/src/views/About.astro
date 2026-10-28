@@ -10,23 +10,27 @@ import Statement from '@/components/sections/Statement.astro';
 import Portrait from '@/components/about/Portrait.astro';
 import Timeline from '@/components/about/Timeline.astro';
 import { getAbout, getSite } from '@/lib/sanity';
+import { useT, type Lang } from '@/i18n';
 
-const [site, ab] = await Promise.all([getSite(), getAbout()]);
+interface Props { lang: Lang }
+const { lang } = Astro.props;
+const t = useT(lang).about;
+const [site, ab] = await Promise.all([getSite(lang), getAbout(lang)]);
 const jsonLd = [{
-  '@type': 'ProfilePage', name: `About ${site.name}`, mainEntity: { '@id': `${Astro.site}#person` },
+  '@type': 'ProfilePage', name: t.profile(site.name), mainEntity: { '@id': `${Astro.site}#person` },
 }, {
   '@type': 'Person', '@id': `${Astro.site}#person`, description: ab.lede,
   knowsAbout: [...new Set(ab.timeline.flatMap((e) => e.tags))],
   knowsLanguage: ['fr', 'en'],
 }];
 ---
-<Base title="About" site={site} seo={ab.seo} jsonLd={jsonLd}>
+<Base title={t.title} site={site} seo={ab.seo} jsonLd={jsonLd} path="/about">
   <PageHeader label={ab.label} heading={ab.heading} lede={ab.lede}>
     <Cells items={ab.facts} n={[2, 2, 2]} />
     <Portrait slot="aside" image={ab.portrait} name={site.name} />
   </PageHeader>
 
-  <Statement block={{ _type: 'statement', _key: 'about-st', label: ab.statementLabel, text: ab.statement }} />
+  <Statement block={{ _type: 'statement', _key: 'about-st', label: ab.statementLabel, text: ab.statement, cite: ab.statementCite }} />
 
   <Section label={ab.timelineLabel} heading={ab.timelineHeading} id="timeline">
     <Timeline entries={ab.timeline} />

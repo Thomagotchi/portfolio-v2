@@ -5,9 +5,12 @@ import Headline from '@/components/ui/Headline.astro';
 import Tag from '@/components/ui/Tag.astro';
 import Seam from '@/components/ui/Seam.astro';
 import type { WorkBlock } from '@/lib/types';
+import { langOf, localize, useT } from '@/i18n';
 
 interface Props { block: WorkBlock }
 const { block } = Astro.props;
+const lang = langOf(Astro.currentLocale);
+const t = useT(lang).work;
 const cats = [...new Set(block.items.map((w) => w.category))];
 ---
 <section class="section wk" id={block.anchor} aria-labelledby={`${block._key}-h`}>
@@ -16,17 +19,19 @@ const cats = [...new Set(block.items.map((w) => w.category))];
     {block.label && <Tag>{block.label}</Tag>}
     <Headline heading={block.heading} id={`${block._key}-h`} />
     <div class="wk__list" data-filter>
-      <div class="wk__tabs" role="group" aria-label="Filter work">
-        {['All', ...cats].map((c, i) => <button type="button" aria-pressed={i === 0 ? 'true' : 'false'} data-c={c}>{c}</button>)}
+      <div class="wk__tabs" role="group" aria-label={t.filter}>
+        {[t.all, ...cats].map((c, i) => <button type="button" aria-pressed={i === 0 ? 'true' : 'false'} data-c={i === 0 ? 'all' : c}>{c}</button>)}
       </div>
       <ul role="list" class="wk__rows">
         {block.items.map((w) => {
           const R = w.href ? 'a' : 'div';
           return (
             <li class="wk__row" data-c={w.category}>
-              <R class="wk__item" href={w.href}>
+              <R class="wk__item" href={w.href && localize(w.href, lang)} {...(w.href?.startsWith('http') && { rel: 'noopener', target: '_blank' })}>
                 <div class="wk__txt"><h3 class="wk__t">{w.title}</h3>{w.meta && <span class="small muted">{w.meta}</span>}</div>
-                {w.href && <span class="wk__pill">View <i aria-hidden="true">→</i></span>}
+                {w.href && (w.href.startsWith('http')
+                  ? <span class="wk__pill">{t.live} <i aria-hidden="true">↗</i></span>
+                  : <span class="wk__pill">{t.view} <i aria-hidden="true">→</i></span>)}
               </R>
             </li>
           );
@@ -45,7 +50,7 @@ const cats = [...new Set(block.items.map((w) => w.category))];
     btns.forEach((b) => b.addEventListener('click', () => {
       btns.forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
       rows.forEach((r) => {
-        const off = b.dataset.c !== 'All' && r.dataset.c !== b.dataset.c;
+        const off = b.dataset.c !== 'all' && r.dataset.c !== b.dataset.c;
         r.classList.toggle('is-off', off);
         r.inert = off;
       });

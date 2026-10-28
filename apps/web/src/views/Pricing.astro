@@ -11,38 +11,48 @@ import Section from '@/components/ui/Section.astro';
 import Chips from '@/components/form/Chips.astro';
 import Fieldset from '@/components/form/Fieldset.astro';
 import Switch from '@/components/form/Switch.astro';
-import { contactQuery, estimate, eur, initialState } from '@/lib/estimate';
+import { contactQuery, estimate, eur, initialState, money } from '@/lib/estimate';
 import { getContact, getPricing, getSite } from '@/lib/sanity';
+import { localize, useT, type Lang } from '@/i18n';
 
-const [site, pr, ct] = await Promise.all([getSite(), getPricing(), getContact()]);
+// Routes: pages/tarifs.astro (fr), pages/en/pricing.astro.
+interface Props { lang: Lang }
+const { lang } = Astro.props;
+const t = useT(lang).pricing;
+const [site, pr, ct] = await Promise.all([getSite(lang), getPricing(lang), getContact(lang)]);
 const s0 = initialState(pr);
 const e0 = estimate(s0, pr);
-const legend = ['Base', 'Extra pages', 'Options', pr.options.filter((o) => o.pct).map((o) => o.label).join(', ') || 'Percent options', 'Express'];
+const $ = (n: number) => money(n, lang);
+const wk = (w: number) => t.weeks(lang === 'fr' ? String(w).replace('.', ',') : String(w));
+const send = (q: string) => `${localize('/contact', lang)}?${q}`;
+const legend = [t.legend[0], t.legend[1], t.legend[2], pr.options.filter((o) => o.pct).map((o) => o.label).join(', ') || t.legend[3], t.legend[4]];
 const t0 = pr.types[s0.type];
 const pct = (n: number) => `${((n - 1) / (pr.maxPages - 1)) * 100}%`;
 const jsonLd = [{
-  '@type': 'Service', name: 'Website design, development and care', provider: { '@id': `${Astro.site}#person` }, areaServed: 'FR',
+  '@type': 'Service', name: t.service, provider: { '@id': `${Astro.site}#person` }, areaServed: 'FR',
   offers: [
     ...pr.points.map((p) => ({
       '@type': 'Offer', name: p.title, category: p.label, priceCurrency: 'EUR',
       priceSpecification: { '@type': p.per ? 'UnitPriceSpecification' : 'PriceSpecification', minPrice: p.from, priceCurrency: 'EUR', valueAddedTaxIncluded: false, ...(p.per && { unitText: 'MONTH' }) },
     })),
-    { '@type': 'AggregateOffer', name: 'Website projects', priceCurrency: 'EUR', lowPrice: Math.min(...pr.types.map((t) => t.base)), highPrice: estimate({ type: pr.types.length - 1, pages: pr.maxPages, opts: pr.options.map(() => true), delivery: pr.delivery.length - 1, care: 0 }, pr).total },
+    { '@type': 'AggregateOffer', name: t.projects, priceCurrency: 'EUR', lowPrice: Math.min(...pr.types.map((t) => t.base)), highPrice: estimate({ type: pr.types.length - 1, pages: pr.maxPages, opts: pr.options.map(() => true), delivery: pr.delivery.length - 1, care: 0 }, pr).total },
   ],
 }, { '@type': 'FAQPage', mainEntity: pr.faq.map((f) => ({ '@type': 'Question', name: f.question, acceptedAnswer: { '@type': 'Answer', text: f.answer } })) }];
 ---
-<Base title="Pricing" site={site} seo={pr.seo} jsonLd={jsonLd}>
+<Base title={t.title} site={site} seo={pr.seo} jsonLd={jsonLd} path="/pricing">
   <PageHeader label={pr.label} heading={pr.heading} lede={pr.lede} />
 
-  <Section label="Price points">
-    <ul role="list" class="cells pp" data-brackets style={"--n:1;--n-md:3"}>
+  <Section label={t.points}>
+    <ul role="list" class="cells pp" data-brackets style={`--n:1;--n-md:2;--n-lg:6`}>
       {pr.points.map((p, i) => (
         <li>
           <span class="tag">{p.label}</span>
           <h2 class="pp__t">{p.title}</h2>
-          <p class="pp__v"><span class="muted">from</span> {eur(p.from)} €{p.per && <small>{p.per}</small>}</p>
+          <p class="pp__v">{!p.exact && <span class="muted">{t.from}</span>} {$(p.from)}{p.per && <small>{p.per}</small>}</p>
           <ul role="list" class="pp__l">{p.items.map((x) => <li>{x}</li>)}</ul>
-          <Button variant="link" data-point={i} aria-controls="simulator">Use in the simulator ↓</Button>
+          {p.sim
+            ? <Button variant="link" data-point={i} aria-controls="simulator">{t.useSim}</Button>
+            : <Button variant="link" href={send(new URLSearchParams({ type: ct.types[3] ?? '' }).toString())}>{t.ask}</Button>}
         </li>
       ))}
     </ul>
@@ -51,56 +61,56 @@ const jsonLd = [{
   <Section label={pr.simLabel} heading={pr.simHeading} id="simulator">
     <div class="sim" data-sim>
       <div class="sim__c" data-sim-form>
-        <Fieldset n={1} legend="Type">
-          <Chips name="type" cols={pr.types.length} checked={['0']} options={pr.types.map((t, i) => ({ label: t.label, note: t.note, value: String(i) }))} />
+        <Fieldset n={1} legend={t.type}>
+          <Chips name="type" cols={pr.types.length} checked={[String(s0.type)]} options={pr.types.map((t, i) => ({ label: t.label, note: t.note, value: String(i) }))} />
         </Fieldset>
-        <Fieldset n={2} legend="Pages">
+        <Fieldset n={2} legend={t.pages}>
           <div class="rg" style={`--p:${pct(s0.pages)};--inc:${pct(t0.pages)};--tw:${100 / (pr.maxPages - 1)}%`}>
-            <div class="rg__v"><label for="pages"><b data-pages>{String(s0.pages).padStart(2, '0')}</b> pages</label><span class="mono" data-included>{t0.pages} included · then {eur(pr.pagePrice)} € each</span></div>
+            <div class="rg__v"><label for="pages"><b data-pages>{String(s0.pages).padStart(2, '0')}</b> {t.pages.toLowerCase()}</label><span class="mono" data-included>{t.included(t0.pages, $(pr.pagePrice))}</span></div>
             <input id="pages" name="pages" type="range" min="1" max={pr.maxPages} value={s0.pages} />
             <div class="rg__t" aria-hidden="true"><i></i></div>
           </div>
         </Fieldset>
-        <Fieldset n={3} legend="Options">
+        <Fieldset n={3} legend={t.options}>
           <div class="ops">
-            {pr.options.map((o, i) => <Switch name="opt" value={String(i)} label={o.label} note={o.note} checked={!!o.on} price={o.pct ? `+ ${o.pct} %` : `+ ${eur(o.price ?? 0)} €`} />)}
+            {pr.options.map((o, i) => <Switch name="opt" value={String(i)} label={o.label} note={o.note} checked={!!o.on} price={o.pct ? `+ ${o.pct}${lang === 'fr' ? '\u202f' : ''}%` : `+ ${$(o.price ?? 0)}`} />)}
           </div>
         </Fieldset>
-        <Fieldset n={4} legend="Delivery">
-          <Chips name="delivery" cols={pr.delivery.length} checked={['0']} options={pr.delivery.map((d, i) => ({ label: d.label, note: d.pct ? `+ ${d.pct} %${d.note ? `, ${d.note}` : ''}` : 'Agreed dates', value: String(i) }))} />
+        <Fieldset n={4} legend={t.delivery}>
+          <Chips name="delivery" cols={pr.delivery.length} checked={['0']} options={pr.delivery.map((d, i) => ({ label: d.label, note: d.pct ? `+ ${d.pct}${lang === 'fr' ? '\u202f' : ''}%${d.note ? `, ${d.note}` : ''}` : t.agreed, value: String(i) }))} />
         </Fieldset>
-        <Fieldset n={5} legend="Care after launch">
-          <Chips name="care" cols={pr.care.length} checked={['0']} options={pr.care.map((c, i) => ({ label: c.label, note: c.month ? `${eur(c.month)} € / month` : 'Hand-over only', value: String(i) }))} />
+        <Fieldset n={5} legend={t.care}>
+          <Chips name="care" cols={pr.care.length} checked={['0']} options={pr.care.map((c, i) => ({ label: c.label, note: c.month ? `${$(c.month)}${t.perMonth}` : t.handover, value: String(i) }))} />
         </Fieldset>
       </div>
 
-      <aside class="est" aria-label="Estimate" data-est>
+      <aside class="est" aria-label={t.estimate} data-est>
         <div class="est__tot">
-          <span class="tag">Estimate · excl. VAT</span>
-          <p class="est__v"><Odometer value={eur(e0.total)} live class="est__odo" /><span>€</span></p>
-          <p class="sr-only" aria-live="polite" data-said>{eur(e0.total)} € excl. VAT</p>
-          <button class="est__more" type="button" aria-expanded="false" aria-controls="est-details" data-more>Details</button>
+          <span class="tag">{t.estTag}</span>
+          <p class="est__v">{lang === 'en' && <span>€</span>}<Odometer value={eur(e0.total, lang)} live class="est__odo" />{lang === 'fr' && <span>€</span>}</p>
+          <p class="sr-only" aria-live="polite" data-said>{$(e0.total)} {t.exVat}</p>
+          <button class="est__more" type="button" aria-expanded="false" aria-controls="est-details" data-more>{t.details}</button>
         </div>
         <div class="est__details" id="est-details">
           <div>
             <div class="sbar" aria-hidden="true">{e0.parts.map((v) => <i style={`--w:${(v / e0.total) * 100}%`}></i>)}</div>
             <ul role="list" class="slg">
-              {legend.map((l, i) => <li class:list={{ 'is-nil': !e0.parts[i] }}><i aria-hidden="true"></i><span>{l}</span><span class="mono" data-part={i}>{eur(e0.parts[i])} €</span></li>)}
+              {legend.map((l, i) => <li class:list={{ 'is-nil': !e0.parts[i] }}><i aria-hidden="true"></i><span>{l}</span><span class="mono" data-part={i}>{$(e0.parts[i])}</span></li>)}
             </ul>
           </div>
           <dl class="kv">
-            <div><dt class="tag">Duration</dt><dd class="mono" data-weeks>≈ {String(e0.weeks).replace('.', ',')} weeks</dd></div>
-            <div><dt class="tag">Deposit {pr.deposit} %</dt><dd class="mono" data-deposit>{eur(e0.deposit)} €</dd></div>
-            <div><dt class="tag">Care</dt><dd class="mono" data-care>None</dd></div>
+            <div><dt class="tag">{t.duration}</dt><dd class="mono" data-weeks>{wk(e0.weeks)}</dd></div>
+            <div><dt class="tag">{t.deposit(pr.deposit)}</dt><dd class="mono" data-deposit>{$(e0.deposit)}</dd></div>
+            <div><dt class="tag">{t.careKv}</dt><dd class="mono" data-care>{t.none}</dd></div>
           </dl>
-          {pr.placeholder && <p class="small muted">Placeholder prices, rounded to 10 €.</p>}
+          {pr.placeholder && <p class="small muted">{t.placeholder}</p>}
         </div>
         <div class="est__go">
-          <Button href={`/contact?${contactQuery(s0, pr, ct.budgets)}`} variant="accent" data-send>Send this estimate</Button>
+          <Button href={send(contactQuery(s0, pr, ct, t.msg, lang))} variant="accent" data-send>{t.send}</Button>
         </div>
       </aside>
     </div>
-    <script type="application/json" id="pricing-data" set:html={JSON.stringify({ pr, budgets: ct.budgets }).replace(/</g, '\\u003c')}></script>
+    <script type="application/json" id="pricing-data" set:html={JSON.stringify({ pr, ct: { types: ct.types, budgets: ct.budgets }, lang, contact: localize('/contact', lang) }).replace(/</g, '\\u003c')}></script>
   </Section>
 
   <Section label={pr.faqLabel}>
@@ -109,7 +119,8 @@ const jsonLd = [{
 </Base>
 
 <script>
-  import { contactQuery, estimate, eur, type EstimateState } from '@/lib/estimate';
+  import { contactQuery, estimate, eur, money, type ContactChips, type EstimateState } from '@/lib/estimate';
+  import { useT, type Lang } from '@/i18n';
   import { setOdometer } from '@/scripts/odometer';
   import { scrollTo } from '@/scripts/scroll';
   import type { Pricing } from '@/lib/types';
@@ -117,7 +128,9 @@ const jsonLd = [{
   const root = document.querySelector<HTMLElement>('[data-sim]');
   const data = document.getElementById('pricing-data');
   if (root && data) {
-    const { pr, budgets } = JSON.parse(data.textContent!) as { pr: Pricing; budgets: string[] };
+    const { pr, ct, lang, contact } = JSON.parse(data.textContent!) as { pr: Pricing; ct: ContactChips; lang: Lang; contact: string };
+    const t = useT(lang).pricing;
+    const $$ = (n: number) => money(n, lang);
     const form = root.querySelector<HTMLElement>('[data-sim-form]')!;
     const $ = <T extends HTMLElement>(sel: string) => root.querySelector<T>(sel)!;
     const range = form.querySelector<HTMLInputElement>('[name="pages"]')!;
@@ -133,30 +146,30 @@ const jsonLd = [{
       const s = state();
       // A bigger type never shows fewer pages than it includes.
       if (s.type !== lastType) { lastType = s.type; s.pages = Math.max(s.pages, pr.types[s.type].pages); range.value = String(s.pages); }
-      const t = pr.types[s.type], e = estimate(s, pr);
+      const ty = pr.types[s.type], e = estimate(s, pr);
       const rg = range.closest<HTMLElement>('.rg')!;
       rg.style.setProperty('--p', pct(s.pages));
-      rg.style.setProperty('--inc', pct(t.pages));
+      rg.style.setProperty('--inc', pct(ty.pages));
       $('[data-pages]').textContent = String(s.pages).padStart(2, '0');
-      $('[data-included]').textContent = `${t.pages} included · then ${eur(pr.pagePrice)} € each`;
-      setOdometer($('.est__odo'), eur(e.total));
-      $('[data-said]').textContent = `${eur(e.total)} € excl. VAT`;
+      $('[data-included]').textContent = t.included(ty.pages, $$(pr.pagePrice));
+      setOdometer($('.est__odo'), eur(e.total, lang));
+      $('[data-said]').textContent = `${$$(e.total)} ${t.exVat}`;
       root.querySelectorAll<HTMLElement>('.sbar i').forEach((seg, i) => seg.style.setProperty('--w', `${(e.parts[i] / e.total) * 100}%`));
-      root.querySelectorAll<HTMLElement>('[data-part]').forEach((el, i) => { el.textContent = `${eur(e.parts[i])} €`; el.parentElement!.classList.toggle('is-nil', !e.parts[i]); });
-      $('[data-weeks]').textContent = `≈ ${String(e.weeks).replace('.', ',')} weeks`;
-      $('[data-deposit]').textContent = `${eur(e.deposit)} €`;
-      $('[data-care]').textContent = e.care ? `+ ${eur(e.care)} € / mo` : 'None';
-      $<HTMLAnchorElement>('[data-send]').href = `/contact?${contactQuery(s, pr, budgets)}`;
+      root.querySelectorAll<HTMLElement>('[data-part]').forEach((el, i) => { el.textContent = $$(e.parts[i]); el.parentElement!.classList.toggle('is-nil', !e.parts[i]); });
+      $('[data-weeks]').textContent = t.weeks(lang === 'fr' ? String(e.weeks).replace('.', ',') : String(e.weeks));
+      $('[data-deposit]').textContent = $$(e.deposit);
+      $('[data-care]').textContent = e.care ? `+ ${$$(e.care)}${t.perMonth}` : t.none;
+      $<HTMLAnchorElement>('[data-send]').href = `${contact}?${contactQuery(s, pr, ct, t.msg, lang)}`;
     };
     form.addEventListener('input', draw);
 
-    // Price point → simulator: design on, showcase type, or a care plan; then scroll to the simulator.
+    // Price point → simulator: what the point sets (type, option, care plan), then scroll to the simulator.
     document.querySelectorAll<HTMLButtonElement>('[data-point]').forEach((b) => b.addEventListener('click', () => {
-      const i = Number(b.dataset.point);
+      const sim = pr.points[Number(b.dataset.point)].sim ?? {};
       const pick = (sel: string) => { const el = form.querySelector<HTMLInputElement>(sel); if (el) el.checked = true; };
-      if (i === 0) pick('[name="opt"][value="0"]');
-      if (i === 1) pick('[name="type"][value="0"]');
-      if (i === 2) pick('[name="care"][value="1"]');
+      if (sim.opt !== undefined) pick(`[name="opt"][value="${sim.opt}"]`);
+      if (sim.type !== undefined) pick(`[name="type"][value="${sim.type}"]`);
+      if (sim.care !== undefined) pick(`[name="care"][value="${sim.care}"]`);
       draw();
       scrollTo(document.getElementById('simulator')!);
     }));
@@ -165,7 +178,7 @@ const jsonLd = [{
     more.addEventListener('click', () => {
       const open = more.getAttribute('aria-expanded') !== 'true';
       more.setAttribute('aria-expanded', String(open));
-      more.textContent = open ? 'Hide details' : 'Details';
+      more.textContent = open ? t.hide : t.details;
       root.querySelector('[data-est]')!.classList.toggle('is-open', open);
     });
     draw();
@@ -173,9 +186,19 @@ const jsonLd = [{
 </script>
 
 <style lang="scss">
+  // 3 to 5 points. md: two per row, a lone last one spans both. lg: a 6-column track; the first row holds
+  // three (2 columns each), what follows shares the second row (5 points: 3 + 2, each 3 columns).
   .pp {
     padding: 0;
     list-style: none;
+
+    @include mq(md) { > li:last-child:nth-child(odd) { grid-column: span 2; } }
+
+    @include mq(lg) {
+      > li, > li:last-child:nth-child(odd) { grid-column: span 2; }
+      > li:nth-child(4):nth-last-child(2), > li:nth-child(5):last-child { grid-column: span 3; }
+      > li:nth-child(4):last-child { grid-column: span 6; }
+    }
 
     > li { gap: var(--space-4); padding: var(--space-6) var(--space-5) var(--space-6); }
     > li > :global(.cta) { justify-self: start; }

@@ -2,50 +2,56 @@
 // Navbar: mark left, links right. Items with a panel open a hairline grid under the bar (desktop/tablet).
 // Mobile: a Menu button opens a full-height sheet (<dialog>: focus trap, Esc) with panel items nested.
 import Mark from '@/components/ui/Mark.astro';
+import LangSwitch from '@/components/ui/LangSwitch.astro';
 import type { Site } from '@/lib/types';
+import { localize, langOf, useT, type Lang } from '@/i18n';
 
-interface Props { site: Site }
-const { site } = Astro.props;
+interface Props { site: Site; alt: Record<Lang, string> }
+const { site, alt } = Astro.props;
+const lang = langOf(Astro.currentLocale);
+const t = useT(lang);
+const to = (href: string) => localize(href, lang);
 ---
 <header class="nav" data-nav>
   <div class="nav__bar">
-    <a class="nav__home" href="/" aria-label={`${site.name}, home`}><Mark size={22} /></a>
-    <nav class="nav__links" aria-label="Main">
+    <a class="nav__home" href={to('/')} aria-label={t.home(site.name)}><Mark size={22} /></a>
+    <nav class="nav__links" aria-label={t.navMain}>
       <ul role="list">
         {site.nav.map((n, i) => (
           <li>
             {n.panel?.length
               ? <button class="nav__link" type="button" aria-expanded="false" aria-controls={`panel-${i}`} data-panel={i}>{n.label} <i class="plus" aria-hidden="true"></i></button>
-              : <a class="nav__link" href={n.href}>{n.label}</a>}
+              : <a class="nav__link" href={to(n.href)}>{n.label}</a>}
           </li>
         ))}
       </ul>
     </nav>
-    <button class="nav__menu" type="button" aria-haspopup="dialog" data-menu-open>Menu</button>
+    <LangSwitch alt={alt} class="nav__lang" />
+    <button class="nav__menu" type="button" aria-haspopup="dialog" data-menu-open>{t.menu}</button>
   </div>
   <div class="nav__drop" data-drop>
     {site.nav.map((n, i) => n.panel?.length ? (
       <ul role="list" class="nav__panel" id={`panel-${i}`} data-for={i} hidden>
         {n.panel.map((c, j) => (
           <li style={`--d:${j * 0.06}s`}>
-            <a class="cell" href={c.href}><span class="tag">{c.eyebrow}</span><b>{c.title}</b>{c.text && <span class="small muted">{c.text}</span>}</a>
+            <a class="cell" href={to(c.href)}><span class="tag">{c.eyebrow}</span><b>{c.title}</b>{c.text && <span class="small muted">{c.text}</span>}</a>
           </li>
         ))}
       </ul>
     ) : null)}
   </div>
-  <dialog class="sheet" aria-label="Menu" data-sheet>
+  <dialog class="sheet" aria-label={t.menu} data-sheet>
     <div class="sheet__bar">
       <Mark size={22} />
-      <button class="nav__menu" type="button" data-menu-close>Close</button>
+      <button class="nav__menu" type="button" data-menu-close>{t.close}</button>
     </div>
     <ul role="list" class="sheet__list">
       {site.nav.map((n) => (
         <li>
-          <a class="sheet__link" href={n.href} data-menu-link>{n.label}</a>
+          <a class="sheet__link" href={to(n.href)} data-menu-link>{n.label}</a>
           {n.panel?.length ? (
             <ul role="list" class="sheet__sub">
-              {n.panel.map((c) => <li><a href={c.href} data-menu-link><span class="tag">{c.eyebrow}</span> {c.title}</a></li>)}
+              {n.panel.map((c) => <li><a href={to(c.href)} data-menu-link><span class="tag">{c.eyebrow}</span> {c.title}</a></li>)}
             </ul>
           ) : null}
         </li>
@@ -247,8 +253,14 @@ const { site } = Astro.props;
     }
   }
 
-  .nav__menu {
+  .nav__bar > :global(.nav__lang) {
     margin-left: auto;
+
+    @include mq(md) { margin-left: var(--space-5); }
+  }
+
+  .nav__menu {
+    margin-left: var(--space-4);
     min-height: 44px;
 
     @include text(nav);

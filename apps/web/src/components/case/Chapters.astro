@@ -9,11 +9,13 @@ import Headline from '@/components/ui/Headline.astro';
 import Tag from '@/components/ui/Tag.astro';
 import type { Chapter } from '@/lib/types';
 
+import { useT } from '@/i18n';
+
 interface Props { chapters: Chapter[] }
 const { chapters } = Astro.props;
 ---
 <div class="chs" data-chapters>
-  <nav class="chs__toc" aria-label="Chapters">
+  <nav class="chs__toc" aria-label={useT(Astro.currentLocale).case.chapters}>
     <div class="chs__rail">
       <b aria-hidden="true"></b>
       <ol role="list">

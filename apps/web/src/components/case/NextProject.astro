@@ -1,10 +1,13 @@
 ---
 // Next project: a full-width row; on hover/focus the surface wipes in and the accent bar slides before the title.
+import { langOf, localize, useT } from '@/i18n';
+
 interface Props { title: string; slug: string; summary: string }
 const { title, slug, summary } = Astro.props;
+const lang = langOf(Astro.currentLocale);
 ---
-<a class="nx wrap" href={`/work/${slug}`}>
-  <span class="tag">Next project</span>
+<a class="nx wrap" href={localize(`/work/${slug}`, lang)}>
+  <span class="tag">{useT(lang).case.next}</span>
   <b>{title}</b>
   <span class="muted">{summary}</span>
 </a>

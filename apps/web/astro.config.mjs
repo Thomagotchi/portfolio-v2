@@ -6,6 +6,7 @@ import deferScripts from './integrations/defer-scripts.mjs';
 import { fileURLToPath } from 'node:url';
 import { SITE } from './src/config.ts';
 import { families } from './src/lib/fonts.ts';
+import { alternates, canonicalOf, TAG } from './src/i18n/index.ts';
 
 // Fonts come from the DA tokens: one Fontsource family → --font-<first role> (shared roles alias it, see lib/fonts.ts).
 // A weight range pulls the variable file: one request per family instead of one per weight.
@@ -19,6 +20,13 @@ const fonts = families.map((f) => ({
   formats: ['woff2'],
   fallbacks: [f.role === 'mono' ? 'monospace' : f.role === 'tag' ? 'serif' : 'sans-serif'],
 }));
+
+// Sitemap alternates from the i18n URL map (the plugin's own i18n option pairs same-slug URLs only).
+const hreflang = (item) => {
+  const { pathname, origin } = new URL(item.url);
+  const alt = alternates(canonicalOf(pathname));
+  return { ...item, links: Object.entries(alt).map(([lang, path]) => ({ lang: TAG[lang], url: new URL(path, origin).href })) };
+};
 
 // Static pages; only the contact action runs on the server. On Vercel (VERCEL=1 at build) the Vercel adapter
 // turns it into a function; everywhere else the node standalone server (local preview, CI gates on dist/client).
@@ -35,8 +43,12 @@ export default defineConfig({
     },
   },
   trailingSlash: 'never',
-  build: { format: 'file', inlineStylesheets: 'always' },
-  integrations: [sitemap(), deferScripts()],
+  // French at the root (French slugs: /a-propos, /tarifs, /projets/x), English under /en. Gives
+  // Astro.currentLocale to every component; URL mapping and UI strings live in src/i18n.
+  i18n: { locales: ['fr', 'en'], defaultLocale: 'fr', routing: { prefixDefaultLocale: false } },
+  // preserve: index routes → dir/index.html (so /en and /en/… coexist), every other page → name.html.
+  build: { format: 'preserve', inlineStylesheets: 'always' },
+  integrations: [sitemap({ serialize: hreflang }), deferScripts()],
   fonts,
   image: { remotePatterns: [{ protocol: 'https', hostname: 'cdn.sanity.io' }] },
   vite: {

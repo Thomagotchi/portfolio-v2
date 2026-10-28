@@ -16,9 +16,12 @@ module.exports = {
   ci: {
     collect: {
       staticDistDir: './apps/web/dist/client',
-      // Every page (autodiscovery stops at 5); LHCI swaps in the static server's port. Add new routes here.
-      url: ['index', 'about', 'contact', 'pricing', '404', 'work/atelier-brume', 'work/ledger-studio', 'work/maison-ondine', 'work/nord-atelier']
-        .map((p) => `http://localhost/${p}.html`),
+      // Every French page (autodiscovery stops at 5) and each English template; LHCI swaps in the static
+      // server's port. Add new routes here.
+      url: [
+        'index', 'a-propos', 'contact', 'tarifs', '404', 'projets/audion', 'projets/la-premiere-brique',
+        'en/index', 'en/about', 'en/contact', 'en/pricing', 'en/work/audion',
+      ].map((p) => `http://localhost/${p}.html`),
       numberOfRuns: 3,
       settings: {
         preset: process.env.LH_PRESET === 'desktop' ? 'desktop' : undefined,

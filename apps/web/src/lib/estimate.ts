@@ -10,10 +10,15 @@ export type Estimate = {
 };
 
 export const round10 = (n: number) => Math.round(n / 10) * 10;
-export const eur = (n: number) => new Intl.NumberFormat('fr-FR').format(round10(n)).replace(/ | /g, ' ');
+type Lang = 'fr' | 'en';
+/** 1234 → '1 230' (fr) | '1,230' (en): rounded to 10, narrow no-break space as the French separator. */
+export const eur = (n: number, lang: Lang = 'fr') =>
+  new Intl.NumberFormat(lang === 'fr' ? 'fr-FR' : 'en-GB').format(round10(n)).replace(/[\u00a0\u202f]/g, '\u202f');
+/** '2 400 €' (fr) | '€2,400' (en). */
+export const money = (n: number, lang: Lang = 'fr') => (lang === 'fr' ? `${eur(n, lang)}\u00a0€` : `€${eur(n, lang)}`);
 
 export const initialState = (r: Pricing): EstimateState => ({
-  type: 0, pages: r.types[0].pages, opts: r.options.map((o) => !!o.on), delivery: 0, care: 0,
+  type: r.start ?? 0, pages: r.types[r.start ?? 0].pages, opts: r.options.map((o) => !!o.on), delivery: 0, care: 0,
 });
 
 export function estimate(s: EstimateState, r: Pricing): Estimate {
@@ -37,11 +42,15 @@ export const budgetIndex = (total: number, bands = [3000, 6000, 12000]) => {
   return i === -1 ? bands.length : i;
 };
 
-/** Query string for /contact from an estimate (chips + a message the client can edit). */
-export function contactQuery(s: EstimateState, r: Pricing, budgets: string[]) {
+export type ContactChips = { types: string[]; budgets: string[] };
+export type EstimateMsg = (type: string, pages: number, opts: string, total: string, weeks: string) => string;
+
+/** Query string for the contact page from an estimate (chips + a message the client can edit). Contact types
+ *  are picked by position, whatever the language: [0] design, [1] development, [2] maintenance. */
+export function contactQuery(s: EstimateState, r: Pricing, ct: ContactChips, msg: EstimateMsg, lang: Lang = 'fr') {
   const e = estimate(s, r);
-  const types = ['Development', ...(s.opts[0] ? ['Design'] : []), ...(s.care ? ['Maintenance'] : [])];
+  const types = [ct.types[1], ...(s.opts[0] ? [ct.types[0]] : []), ...(s.care ? [ct.types[2]] : [])];
   const opts = r.options.filter((_, i) => s.opts[i]).map((o) => `, ${o.label.toLowerCase()}`).join('');
-  const msg = `Estimate from the simulator: ${r.types[s.type].label}, ${s.pages} pages${opts}. ${eur(e.total)} € excl. VAT, about ${e.weeks} weeks.`;
-  return new URLSearchParams({ type: types.join(','), budget: budgets[budgetIndex(e.total)] ?? '', msg }).toString();
+  const weeks = lang === 'fr' ? String(e.weeks).replace('.', ',') : String(e.weeks);
+  return new URLSearchParams({ type: types.join(','), budget: ct.budgets[budgetIndex(e.total)] ?? '', msg: msg(r.types[s.type].label, s.pages, opts, money(e.total, lang), weeks) }).toString();
 }

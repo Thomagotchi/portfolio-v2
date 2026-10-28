@@ -1,0 +1,7 @@
+---
+import Page from '@/views/Page.astro';
+import { pagePaths } from '@/lib/paths';
+
+export const getStaticPaths = () => pagePaths('en');
+---
+<Page {...Astro.props} lang="en" />

@@ -2,11 +2,13 @@
 import type { Seo } from '@/lib/types';
 import { SITE } from '@/config';
 import { cleanPath } from '@/lib/url';
+import { LOCALES, TAG, type Lang } from '@/i18n';
 
-interface Props { title: string; seo?: Seo; image?: string }
-const { title, seo = {}, image } = Astro.props;
+interface Props { title: string; seo?: Seo; image?: string; lang: Lang }
+const { title, seo = {}, image, lang } = Astro.props;
+const og = (l: Lang) => TAG[l].replace('-', '_');
 const fullTitle = seo.title ?? (title === SITE.name ? title : `${title} | ${SITE.name}`);
-const description = seo.description ?? SITE.description;
+const description = seo.description ?? SITE.description[lang];
 const canonical = new URL(cleanPath(Astro.url.pathname), Astro.site).href;
 ---
 <title>{fullTitle}</title>
@@ -18,5 +20,7 @@ const canonical = new URL(cleanPath(Astro.url.pathname), Astro.site).href;
 <meta property="og:title" content={fullTitle} />
 <meta property="og:description" content={description} />
 <meta property="og:url" content={canonical} />
+<meta property="og:locale" content={og(lang)} />
+{LOCALES.filter((l) => l !== lang).map((l) => <meta property="og:locale:alternate" content={og(l)} />)}
 {image && <meta property="og:image" content={image} />}
 <meta name="twitter:card" content={image ? 'summary_large_image' : 'summary'} />

@@ -12,8 +12,9 @@ export default defineType({
     defineField({ name: 'category', type: 'string', description: 'Work list filter, e.g. Webflow' }),
     defineField({ name: 'summary', type: 'string', description: 'One line for the work list and the next-project row.' }),
     label, heading(), lede,
-    cells('meta', '5 cells: client, year, role, stack, live'),
-    cells('results', 'Figures roll in as odometers (e.g. +38%, 0.8s).'),
+    cells('meta', 'Client, year, role, stack, live, agency'),
+    cells('results', 'Measured figures only, roll in as odometers (e.g. +38%, 0.8s). Empty = no results section.'),
+    defineField({ name: 'source', title: 'Original case study', type: 'link', description: 'Agency work: link to the agency case study (required by the agency).' }),
     image('cover'),
     defineField({ name: 'chapters', type: 'array', of: [defineArrayMember({ type: 'object', name: 'chapter', fields: [
       defineField({ name: 'label', type: 'string', description: 'e.g. 02 · Approach' }), heading(),

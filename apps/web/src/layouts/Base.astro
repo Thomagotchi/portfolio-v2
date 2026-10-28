@@ -10,11 +10,16 @@ import Footer from '@/components/layout/Footer.astro';
 import type { Seo as SeoData, Site } from '@/lib/types';
 import { SITE } from '@/config';
 import { fontAliases } from '@/lib/fonts';
+import { alternates, canonicalOf, DEFAULT_LANG, langOf, LOCALES, TAG, useT } from '@/i18n';
 
-interface Props { title: string; site: Site; seo?: SeoData; jsonLd?: Record<string, unknown>[] }
+// `path`: the canonical path of this page (/about, /work/x). Defaults to the served one, mapped back.
+interface Props { title: string; site: Site; seo?: SeoData; jsonLd?: Record<string, unknown>[]; path?: string }
 const { title, site, seo, jsonLd = [] } = Astro.props;
+const lang = langOf(Astro.currentLocale);
+const t = useT(lang);
+const alt = alternates(Astro.props.path ?? canonicalOf(Astro.url.pathname));
 const graph = [
-  { '@type': 'WebSite', '@id': `${Astro.site}#website`, url: Astro.site?.href, name: site.name, description: site.description, publisher: { '@id': `${Astro.site}#person` } },
+  { '@type': 'WebSite', '@id': `${Astro.site}#website`, url: Astro.site?.href, name: site.name, description: site.description, inLanguage: LOCALES.map((l) => TAG[l]), publisher: { '@id': `${Astro.site}#person` } },
   {
     '@type': 'Person', '@id': `${Astro.site}#person`, name: site.name, jobTitle: site.role.split('·')[0].trim(), url: Astro.site?.href,
     email: `mailto:${site.contact.email}`, address: { '@type': 'PostalAddress', addressCountry: 'FR' }, sameAs: site.socials?.map((s) => s.href),
@@ -23,12 +28,16 @@ const graph = [
 ];
 ---
 <!doctype html>
-<html lang={SITE.lang} data-theme={SITE.theme}>
+<html lang={lang} data-theme={SITE.theme}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <script is:inline>document.documentElement.classList.add('js')</script>
-    <Seo title={title} seo={seo} image={new URL('/og-image.png', Astro.site).href} />
+    <Seo title={title} seo={seo} image={new URL('/og-image.png', Astro.site).href} lang={lang} />
+    {!seo?.noindex && <>
+      {LOCALES.map((l) => <link rel="alternate" hreflang={l} href={new URL(alt[l], Astro.site).href} />)}
+      <link rel="alternate" hreflang="x-default" href={new URL(alt[DEFAULT_LANG], Astro.site).href} />
+    </>}
     <Font cssVariable="--font-display" preload />
     <Font cssVariable="--font-tag" preload />
     <Font cssVariable="--font-mono" />
@@ -43,8 +52,8 @@ const graph = [
     <JsonLd graph={graph} />
   </head>
   <body>
-    <a class="skip-link" href="#main">Skip to content</a>
-    <Header site={site} />
+    <a class="skip-link" href="#main">{t.skip}</a>
+    <Header site={site} alt={alt} />
     <main id="main" tabindex="-1">
       <slot />
       <div class="thread" data-thread aria-hidden="true"><i></i><b></b></div>

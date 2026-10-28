@@ -35,7 +35,10 @@ const builtWith = defineType({
 
 const statement = defineType({
   name: 'statement', type: 'object',
-  fields: [label, anchor, defineField({ name: 'text', type: 'text', rows: 4, validation: (r) => r.required().max(240) })],
+  fields: [
+    label, anchor, defineField({ name: 'text', type: 'text', rows: 4, validation: (r) => r.required().max(280) }),
+    defineField({ name: 'cite', type: 'string', description: 'Set when the text is a quotation: who said it.' }),
+  ],
   preview: { select: { title: 'text' }, prepare: ({ title }) => ({ title, subtitle: 'Statement' }) },
 });
 

@@ -18,6 +18,7 @@ const words = block.text.split(' ');
       <span class="sr-only">{block.text}</span>
       <span aria-hidden="true">{words.map((w, i) => <><span class="wd">{[...w].map((c) => <span class="c">{c}</span>)}</span>{i < words.length - 1 ? ' ' : ''}</>)}</span>
     </p>
+    {block.cite && <p class="tag st__cite">{block.cite}</p>}
   </div>
 </section>
 
@@ -42,6 +43,11 @@ const words = block.text.split(' ');
     position: relative;
     display: grid;
     gap: var(--space-block);
+  }
+
+  .st__cite {
+    margin-top: var(--space-5);
+    color: var(--muted);
   }
 
   .st__text {

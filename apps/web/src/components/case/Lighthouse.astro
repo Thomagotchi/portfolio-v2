@@ -1,13 +1,16 @@
 ---
 // Lighthouse before / after: a Before / After toggle (aria-pressed) and four bars with counting scores.
 // Server HTML shows the after state; on scroll-in it plays before, then after.
+import { useT } from '@/i18n';
+
 interface Props { scores: { label: string; before: number; after: number }[] }
 const { scores } = Astro.props;
+const t = useT(Astro.currentLocale).case;
 ---
 <div class="lh" data-lh>
-  <div class="lh__seg" role="group" aria-label="Measure">
-    <button type="button" aria-pressed="false" data-m="before">Before</button>
-    <button type="button" aria-pressed="true" data-m="after">After</button>
+  <div class="lh__seg" role="group" aria-label={t.measure}>
+    <button type="button" aria-pressed="false" data-m="before">{t.before}</button>
+    <button type="button" aria-pressed="true" data-m="after">{t.after}</button>
   </div>
   <ul role="list" class="lh__rows">
     {scores.map((s) => (

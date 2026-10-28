@@ -1,13 +1,18 @@
 ---
 // Before / after: two wireframes split by a line. A native range input covers the figure (drag anywhere,
 // arrow keys and Home/End from the keyboard); its value drives --x. No JS beyond input → --x.
+import { useT } from '@/i18n';
+
 interface Props { before: string; after: string }
 const { before, after } = Astro.props;
+const t = useT(Astro.currentLocale).case;
+// The value text template, filled by the script: "{n} % avant" / "{n}% before".
+const vt = t.beforePct(0).replace('0', '{n}');
 ---
 <figure class="cmp" data-compare>
   <div class="cmp__wf cmp__new" aria-hidden="true"><div class="hf"><u></u><u></u></div><div class="rw"><i></i><i></i><i></i></div><div class="ln"></div></div>
   <div class="cmp__wf cmp__old" aria-hidden="true">{Array.from({ length: 8 }, () => <i></i>)}</div>
-  <input class="cmp__r" type="range" min="0" max="100" value="50" aria-label="Compare before and after" aria-valuetext="50% before" />
+  <input class="cmp__r" type="range" min="0" max="100" value="50" aria-label={t.compare} aria-valuetext={t.beforePct(50)} data-vt={vt} />
   <i class="cmp__h" aria-hidden="true"></i>
   <figcaption>
     <span class="tag cmp__t cmp__t--l">{before}</span>
@@ -20,7 +25,7 @@ const { before, after } = Astro.props;
     const r = f.querySelector<HTMLInputElement>('input')!;
     r.addEventListener('input', () => {
       f.style.setProperty('--x', `${r.value}%`);
-      r.setAttribute('aria-valuetext', `${r.value}% before`);
+      r.setAttribute('aria-valuetext', r.dataset.vt!.replace('{n}', r.value));
     });
   }
 </script>

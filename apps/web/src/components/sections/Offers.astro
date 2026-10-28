@@ -4,6 +4,7 @@
 import Button from '@/components/ui/Button.astro';
 import Tag from '@/components/ui/Tag.astro';
 import Seam from '@/components/ui/Seam.astro';
+import { langOf, localize } from '@/i18n';
 import type { OffersBlock } from '@/lib/types';
 
 interface Props { block: OffersBlock }
@@ -18,7 +19,7 @@ const { block } = Astro.props;
         const R = o.href ? 'a' : 'div';
         return (
           <li style={`--d:${i * 0.15}s`}>
-            <R class="ix" href={o.href}>
+            <R class="ix" href={o.href && localize(o.href, langOf(Astro.currentLocale))}>
               <span class="ix__n" aria-hidden="true">{String(i + 1).padStart(2, '0')}</span>
               <h3 class="ix__t">{o.title}</h3>
               {o.meta && <p class="ix__m">{o.meta}</p>}

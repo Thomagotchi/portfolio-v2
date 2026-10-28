@@ -12,4 +12,13 @@ import headline from './objects/headline';
 import figure from './objects/figure';
 import { blocks } from './blocks';
 
-export const schemaTypes = [page, site, caseStudy, aboutPage, contactPage, pricing, notFound, seo, link, cta, headline, figure, ...blocks];
+import { defineField } from 'sanity';
+
+/** fr | en. Set by the Studio structure (one folder per language), never typed by hand. */
+export const LANGUAGES = [{ id: 'fr', title: 'Français' }, { id: 'en', title: 'English' }] as const;
+const language = defineField({ name: 'language', type: 'string', readOnly: true, hidden: ({ value }) => !!value, options: { list: LANGUAGES.map((l) => ({ value: l.id, title: l.title })) } });
+
+// Every document carries its language (document-level translation: one document per language).
+const documents = [page, site, caseStudy, aboutPage, contactPage, pricing, notFound].map((t) => ({ ...t, fields: [language, ...t.fields] }));
+
+export const schemaTypes = [...documents, seo, link, cta, headline, figure, ...blocks];

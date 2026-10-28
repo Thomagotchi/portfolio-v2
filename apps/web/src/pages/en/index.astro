@@ -1,0 +1,7 @@
+---
+import Page from '@/views/Page.astro';
+import { homePage } from '@/lib/paths';
+
+const page = await homePage('en');
+---
+<Page page={page} lang="en" />

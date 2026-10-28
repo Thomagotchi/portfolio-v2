@@ -2,10 +2,13 @@
 // DA CTAs. primary: label roll · accent: slash wipe · secondary: corner lock · surface: perimeter draw · link: underline draw.
 // Sizes from --cta-*; lgSize applies from the lg breakpoint (hero: md → lg). Opaque fills only, radius 0.
 import type { Cta } from '@/lib/types';
+import { langOf, localize } from '@/i18n';
 
 type Size = 'sm' | 'md' | 'lg';
 interface Props { href?: string; variant?: Cta['variant']; size?: Size; lgSize?: Size; class?: string; [k: string]: unknown }
-const { href, variant = 'primary', size = 'md', lgSize, class: cls, ...rest } = Astro.props;
+const { href: raw, variant = 'primary', size = 'md', lgSize, class: cls, ...rest } = Astro.props;
+// Canonical internal paths become the current locale's URL (/pricing → /tarifs or /en/pricing).
+const href = raw && localize(raw, langOf(Astro.currentLocale));
 const T = href ? 'a' : 'button';
 const label = await Astro.slots.render('default');
 const arrow = '<svg class="arw" viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 10 10 2M4 2h6v6"/></svg>';

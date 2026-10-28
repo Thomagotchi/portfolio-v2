@@ -5,6 +5,7 @@ import { Image } from 'astro:assets';
 import Window from '@/components/ui/Window.astro';
 import { imageUrl } from '@/lib/sanity';
 import type { SanityImage } from '@/lib/types';
+import { useT } from '@/i18n';
 
 interface Props { image?: SanityImage; name: string }
 const { image, name } = Astro.props;
@@ -16,7 +17,7 @@ const src = image ? imageUrl(image, 960) : '';
       ? <Image src={src} alt={image?.alt ?? name} width={800} height={1000} class="pt__img" />
       : <div class="pt__scene" data-relief aria-hidden="true"></div>}
   </Window>
-  {!src && <figcaption class="tag pt__cap">Portrait · placeholder</figcaption>}
+  {!src && <figcaption class="tag pt__cap">{useT(Astro.currentLocale).about.portrait}</figcaption>}
 </figure>
 
 <script>

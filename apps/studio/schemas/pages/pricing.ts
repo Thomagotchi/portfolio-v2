@@ -10,10 +10,17 @@ export default defineType({
   name: 'pricing', title: 'Pricing', type: 'document', groups: [...groups, { name: 'sim', title: 'Simulator' }],
   fields: [
     placeholder, label, heading(), lede,
-    defineField({ name: 'points', title: 'Price points', type: 'array', validation: (r) => r.length(3), of: [obj('point', [
+    defineField({ name: 'points', title: 'Price points', type: 'array', validation: (r) => r.min(3).max(5), of: [obj('point', [
       defineField({ name: 'label', type: 'string' }), defineField({ name: 'title', type: 'string' }), eur('from', 'From'),
-      defineField({ name: 'per', type: 'string', description: 'e.g. " / month"' }), strings('items'),
+      defineField({ name: 'per', type: 'string', description: 'e.g. " / month"' }),
+      defineField({ name: 'exact', title: 'Fixed price', type: 'boolean', description: 'On = shown without "from" (a day rate).' }),
+      strings('items'),
+      defineField({ name: 'sim', title: 'Sets in the simulator', type: 'object', description: 'Empty = the button goes to the contact page.', fields: [
+        defineField({ name: 'type', title: 'Type index', type: 'number' }), defineField({ name: 'opt', title: 'Option index', type: 'number' }),
+        defineField({ name: 'care', title: 'Care plan index', type: 'number' }),
+      ] }),
     ], 'title')] }),
+    defineField({ name: 'start', group: 'sim', title: 'Type selected on load', type: 'number', description: 'Index in Types (0 = first).' }),
     defineField({ name: 'simLabel', group: 'sim', title: 'Simulator tag', type: 'string' }),
     heading('simHeading'),
     defineField({ name: 'faqLabel', title: 'FAQ tag', type: 'string' }),
