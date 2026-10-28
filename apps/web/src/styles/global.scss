@@ -1,0 +1,191 @@
+@use 'reset';
+@use 'type';
+
+// Page grid (DA spec): margins, square hairline cells, the frame line at half the margin, text inset.
+:root {
+  --margin: var(--grid-margin-mobile);
+  --cell: calc((100vw - 2 * var(--margin)) / var(--grid-cells-mobile));
+  --cell-x0: var(--margin);
+  --frame: 10px;
+  --tx: calc(var(--grid-text-inset) + 1px); // 1px line + clear ground
+  --header-h: 56px;
+  --line: color-mix(in srgb, var(--text) 10%, transparent);
+
+  // Nav links at rest: the DA's 55% of the text colour. On paper that is ≈ 4.0:1 (fails AA), so light uses --muted.
+  --nav-rest: color-mix(in srgb, var(--text) 55%, var(--bg));
+
+  @include mq(md) {
+    --margin: var(--grid-margin-tablet);
+    --cell: calc(100vw / var(--grid-cells-tablet));
+    --cell-x0: 0px;
+    --frame: calc(var(--margin) / 2);
+    --header-h: 60px;
+  }
+
+  @include mq(lg) {
+    --margin: var(--grid-margin-desktop);
+    --cell: calc(100vw / var(--grid-cells-desktop));
+    --frame: var(--cell); // = half the margin up to 1440; past it the margin centres 1200px and the frame stays near the edge
+    --header-h: 64px;
+  }
+}
+
+[data-theme='light'] { --nav-rest: var(--muted); }
+
+@media (prefers-color-scheme: light) {
+  [data-theme='auto'] { --nav-rest: var(--muted); }
+}
+
+html {
+  background: var(--bg);
+  color: var(--text);
+  scroll-padding-top: var(--header-h);
+  font-synthesis: none;
+}
+
+body {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow-x: clip;
+}
+
+main { flex: 1; position: relative; }
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--on-action);
+}
+
+// Content sits on the margin line plus the text inset.
+.wrap { padding-inline: calc(var(--margin) + var(--tx)) var(--margin); }
+
+.section {
+  position: relative;
+  padding-block: var(--space-section) var(--space-section);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.skip-link {
+  position: fixed;
+  top: var(--space-2);
+  left: var(--space-2);
+  z-index: var(--layer-toast);
+  padding: var(--space-3) var(--space-4);
+  background: var(--action);
+  color: var(--on-action);
+  translate: 0 -200%;
+
+  &:focus-visible { translate: 0; }
+}
+
+// Hairline cells (DA card grids): shared 1px lines, so every edge lands on a line. Lines are each cell's
+// right and bottom shadow (in the 1px gap) plus the row's top and left border: a short last row leaves
+// ground, not a filled block. Columns: --n on mobile, --n-md and --n-lg above (each falls back to the one below).
+.cells {
+  display: grid;
+  grid-template-columns: repeat(var(--n, 1), minmax(0, 1fr));
+  gap: 1px;
+  margin: 0;
+  border-top: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+
+  @include mq(md) { grid-template-columns: repeat(var(--n-md, var(--n, 1)), minmax(0, 1fr)); }
+
+  @include mq(lg) { grid-template-columns: repeat(var(--n-lg, var(--n-md, var(--n, 1))), minmax(0, 1fr)); }
+
+  > * {
+    display: grid;
+    align-content: start;
+    gap: var(--space-3);
+    padding: var(--space-4) var(--space-5);
+    background: var(--bg);
+    box-shadow: 1px 0 0 var(--border), 0 1px 0 var(--border), 1px 1px 0 var(--border);
+  }
+}
+
+// Accent square before section tags.
+.sq {
+  display: inline-block;
+  flex: none;
+  width: 7px;
+  height: 7px;
+  background: var(--accent);
+}
+
+// Mask rise (page headers, above the fold): each block rises out of its own clip, transform only, so the
+// LCP text is painted from the first frame. Padding gives hover ornaments room inside the clip.
+.rise {
+  overflow: clip;
+  padding: 12px;
+  margin: -12px;
+}
+
+@include motion {
+  .rise > * { animation: rise var(--duration-slow) var(--ease-move) 0.5s both; }
+
+  @for $i from 2 through 6 {
+    .rise:nth-child(#{$i}) > * { animation-delay: #{0.5 + ($i - 1) * 0.12}s; }
+  }
+}
+
+@keyframes rise { from { translate: 0 calc(100% + 16px); } }
+
+// Reveal: hidden only when JS runs and motion is allowed. Never on the LCP element.
+@include motion {
+  .js [data-reveal] {
+    opacity: 0;
+    translate: 0 12px;
+  }
+}
+
+// Section seam: hairline between the frame lines, drawn when the thread passes (scripts/thread.ts).
+.seam {
+  position: absolute;
+  top: 0;
+  left: var(--frame);
+  right: var(--frame);
+  z-index: var(--layer-content);
+  height: 1px;
+  background: var(--border);
+  transform-origin: left;
+}
+
+// Pixel thread down the frame line. Hidden until the script has placed it.
+.thread {
+  position: absolute;
+  left: var(--frame);
+  top: 0;
+  z-index: var(--layer-thread);
+  width: 1px;
+  pointer-events: none;
+  visibility: hidden;
+
+  &.is-set { visibility: visible; }
+
+  i, b { position: absolute; left: 0; top: 0; }
+  i { width: 1px; height: 100%; background: var(--border); transform-origin: top; transform: scaleY(0); }
+  b { left: -3px; top: -3px; width: 7px; height: 7px; background: var(--accent); }
+}
+
+@include motion {
+  .js .seam {
+    transform: scaleX(0);
+    transition: transform 1.4s var(--ease-move);
+
+    &.is-on { transform: none; }
+  }
+}

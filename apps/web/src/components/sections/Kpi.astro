@@ -1,0 +1,113 @@
+---
+// Square-cell grid band: lines draw in, then tag, heading and the stat cells; figures roll in.
+// The grid runs between the two frame lines, so the thread always rides a line; the stats sit on lines
+// in one row at every width. Baselines sit on the horizontal lines (text-box trim + rows of one cell).
+import Headline from '@/components/ui/Headline.astro';
+import Odometer from '@/components/ui/Odometer.astro';
+import Seam from '@/components/ui/Seam.astro';
+import Tag from '@/components/ui/Tag.astro';
+import type { KpiBlock } from '@/lib/types';
+
+interface Props { block: KpiBlock }
+const { block } = Astro.props;
+---
+<section class="kpi" data-inview aria-labelledby={`${block._key}-h`}>
+  <Seam />
+  <div class="kpi__grid" aria-hidden="true"></div>
+  <div class="wrap kpi__in">
+    {block.label && <Tag class="kpi__tag">{block.label}</Tag>}
+    <Headline heading={block.heading} class="kpi__h" id={`${block._key}-h`} />
+  </div>
+  <div class="wrap">
+    <ul role="list" class="kpi__cells">
+      {block.stats.map((s) => (
+        <li><Odometer value={s.value} /><span class="small muted">{s.label}</span></li>
+      ))}
+    </ul>
+  </div>
+</section>
+
+<style lang="scss">
+  // Local grid: n cells between the frame lines (a multiple of the stat count on mobile), first line on the frame.
+  // --kx: the line nearest the page margin, where the stat row starts.
+  .kpi {
+    --n: 9;
+    --span: 3;
+    --cell: calc((100vw - 2 * var(--frame)) / var(--n));
+    --cell-x0: var(--frame);
+    --kx: calc(var(--frame) + round(nearest, var(--margin) - var(--frame), var(--cell)));
+
+    position: relative;
+    padding-block: calc(var(--cell) * 2);
+
+    @include mq(md) { --n: 22; --span: 6; }
+  }
+
+  .kpi__grid {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+
+    @include fade-edges(calc(var(--cell) * 2));
+
+    &::before, &::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+    }
+
+    &::before { @include hairlines(true, false); }
+    &::after { @include hairlines(false, true); }
+  }
+
+  .wrap { position: relative; }
+
+  .kpi__in {
+    display: grid;
+    grid-auto-rows: var(--cell);
+    align-items: end;
+  }
+
+  .kpi__in > :global(.kpi__tag), .kpi__h { text-box: trim-both cap alphabetic; }
+  .kpi__h { grid-row: span 2; max-width: 16ch; }
+
+  .kpi__cells {
+    display: grid;
+    grid-auto-flow: column;
+    width: max-content;
+    grid-auto-columns: calc(var(--cell) * var(--span));
+    grid-auto-rows: calc(var(--cell) * 3);
+    margin-top: var(--cell);
+    margin-left: calc(var(--kx) - var(--margin) - var(--tx));
+    border-top: 1px solid var(--border);
+    border-left: 1px solid var(--border);
+
+    li {
+      display: grid;
+      align-content: start;
+      gap: var(--space-2);
+      padding: var(--space-3);
+      overflow: hidden;
+
+      @include mq(md) { gap: calc(var(--cell) / 2); padding: calc(var(--cell) / 2); }
+
+      background: var(--bg);
+      border-right: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+  }
+
+  @include motion {
+    .kpi__grid::before { transition: clip-path 1.6s var(--ease-soft) 0.2s; }
+    .kpi__grid::after { transition: clip-path 1.3s var(--ease-move) 0.3s; }
+
+    .kpi__h, .kpi__cells { transition: opacity 1s var(--ease-soft) 1.05s, translate var(--duration-slow) var(--ease-move) 1.05s; }
+    .kpi__cells { transition-delay: 1.2s; }
+
+    :global(.js) .kpi:not(:global(.is-in)) {
+      .kpi__grid::before { clip-path: inset(0 0 100% 0); }
+      .kpi__grid::after { clip-path: inset(0 100% 0 0); }
+      .kpi__h, .kpi__cells { opacity: 0; translate: 0 12px; }
+    }
+  }
+</style>

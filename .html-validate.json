@@ -1,0 +1,1 @@
+{ "extends": ["html-validate:recommended"], "rules": { "no-inline-style": "off", "no-redundant-role": "off", "void-style": "off", "no-trailing-whitespace": "off", "form-dup-name": ["error", { "shared": ["radio", "checkbox", "button", "reset", "submit"] }] } }

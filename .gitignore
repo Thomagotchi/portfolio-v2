@@ -1,0 +1,40 @@
+# Dependencies and build output
+node_modules
+dist
+.astro
+packages/tokens/dist
+apps/studio/seed.ndjson
+
+# Test and audit output
+.lighthouseci
+test-results
+playwright-report
+.shots/
+
+# Environment: real values live in .env (never committed); .env.example lists the keys, empty
+.env
+.env.*
+!.env.example
+
+# Hosts and services (local state, tokens)
+.sanity
+.vercel
+.netlify
+
+# AI assistants and agent tooling (local only)
+CLAUDE.md
+CLAUDE.local.md
+.claude/
+.mcp.json
+graft/
+
+# Keys and certificates
+*.pem
+*.key
+*.p12
+
+# OS / editors
+.DS_Store
+.idea
+.vscode/*
+!.vscode/extensions.json

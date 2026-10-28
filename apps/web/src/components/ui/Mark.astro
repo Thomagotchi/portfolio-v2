@@ -1,0 +1,17 @@
+---
+// The DA mark (polygons from tokens.json). The pixel takes the accent unless mono.
+import tokens from 'tokens/tokens.json';
+
+interface Props { size?: number; label?: string; mono?: boolean; class?: string }
+const { size = 22, label, mono = false, class: cls } = Astro.props;
+const { grid, pieces } = tokens.mark as { grid: number; pieces: { id: string; points: string; accent?: boolean }[] };
+---
+<svg class:list={['mark', cls]} width={size} height={size} viewBox={`0 0 ${grid} ${grid}`} fill="currentColor"
+  role={label ? 'img' : undefined} aria-label={label} aria-hidden={label ? undefined : 'true'}>
+  {pieces.map((p) => <polygon points={p.points} class:list={{ 'mark__px': p.accent && !mono }} />)}
+</svg>
+
+<style>
+  .mark { flex: none; }
+  .mark__px { fill: var(--accent); }
+</style>

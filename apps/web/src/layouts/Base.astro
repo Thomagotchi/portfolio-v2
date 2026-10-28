@@ -1,0 +1,58 @@
+---
+import { Font } from 'astro:assets';
+import 'tokens/tokens.css';
+import '@/styles/global.scss';
+import 'lenis/dist/lenis.css'; // ~300 B, only applies when Lenis adds .lenis to <html>
+import Seo from '@/components/seo/Seo.astro';
+import JsonLd from '@/components/seo/JsonLd.astro';
+import Header from '@/components/layout/Header.astro';
+import Footer from '@/components/layout/Footer.astro';
+import type { Seo as SeoData, Site } from '@/lib/types';
+import { SITE } from '@/config';
+import { fontAliases } from '@/lib/fonts';
+
+interface Props { title: string; site: Site; seo?: SeoData; jsonLd?: Record<string, unknown>[] }
+const { title, site, seo, jsonLd = [] } = Astro.props;
+const graph = [
+  { '@type': 'WebSite', '@id': `${Astro.site}#website`, url: Astro.site?.href, name: site.name, description: site.description, publisher: { '@id': `${Astro.site}#person` } },
+  {
+    '@type': 'Person', '@id': `${Astro.site}#person`, name: site.name, jobTitle: site.role.split('·')[0].trim(), url: Astro.site?.href,
+    email: `mailto:${site.contact.email}`, address: { '@type': 'PostalAddress', addressCountry: 'FR' }, sameAs: site.socials?.map((s) => s.href),
+  },
+  ...jsonLd,
+];
+---
+<!doctype html>
+<html lang={SITE.lang} data-theme={SITE.theme}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script is:inline>document.documentElement.classList.add('js')</script>
+    <Seo title={title} seo={seo} image={new URL('/og-image.png', Astro.site).href} />
+    <Font cssVariable="--font-display" preload />
+    <Font cssVariable="--font-tag" preload />
+    <Font cssVariable="--font-mono" />
+    <Fragment set:html={`<style>:root{${fontAliases}}</style>`} />
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta name="theme-color" content="#0C0C0E" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#F7F6F4" media="(prefers-color-scheme: light)" />
+    <link rel="sitemap" href="/sitemap-index.xml" />
+    <JsonLd graph={graph} />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <Header site={site} />
+    <main id="main" tabindex="-1">
+      <slot />
+      <div class="thread" data-thread aria-hidden="true"><i></i><b></b></div>
+    </main>
+    <Footer site={site} />
+    <script>
+      // Loaded on window load by integrations/defer-scripts.mjs: never delays FCP/LCP.
+      import '@/scripts/main';
+    </script>
+  </body>
+</html>

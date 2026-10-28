@@ -1,0 +1,20 @@
+---
+// Section tag: the accent pixel, then serif capitals. One look and one entry for every section: when it
+// scrolls in, the pixel pops and the text decodes out of binary (scripts/decode.ts).
+interface Props { as?: 'span' | 'p'; class?: string }
+const { as: T = 'p', class: cls } = Astro.props;
+---
+<T class:list={['tag-lg', 'stag', cls]} data-tag><span class="sq" aria-hidden="true"></span><span data-decode><slot /></span></T>
+
+<style lang="scss">
+  .stag {
+    display: flex;
+    align-items: center;
+    gap: var(--space-inline);
+  }
+
+  @include motion {
+    .sq { transition: scale var(--duration-base) var(--ease-move); }
+    :global(.js) .stag:not(:global(.is-in)) .sq { scale: 0; }
+  }
+</style>

@@ -1,0 +1,98 @@
+// Injected in every SCSS file. Mixins and functions only: no CSS output here.
+@use 'sass:map';
+@use 'sass:math';
+@use 'sass:list';
+
+// DA breakpoints (design frames 390 / 768 / 1440): tablet from 768, desktop from 1024.
+$breakpoints: (md: 768px, lg: 1024px);
+
+@mixin mq($bp) {
+  @media (width >= map.get($breakpoints, $bp)) { @content; }
+}
+
+@mixin motion {
+  @media (prefers-reduced-motion: no-preference) { @content; }
+}
+
+// fluid(16px, 24px) → clamp() scaling from 390 to 1440 px viewport.
+@function fluid($min, $max, $from: 390px, $to: 1440px) {
+  $slope: math.div($max - $min, $to - $from);
+  $base: $min - $slope * $from;
+
+  @return clamp(#{$min}, #{$base} + #{$slope * 100vw}, #{$max});
+}
+
+// DA text style → font shorthand pieces: @include text(h2).
+@mixin text($s) {
+  font-family: var(--text-#{$s}-family);
+  font-size: var(--text-#{$s}-size);
+  font-weight: var(--text-#{$s}-weight);
+  line-height: var(--text-#{$s}-line-height);
+  letter-spacing: var(--text-#{$s}-tracking);
+}
+
+// Page hairline grid: square cells on the page columns (see global.scss --cell / --cell-x0).
+@mixin hairlines($v: true, $h: true) {
+  $layers: ();
+
+  @if $v { $layers: list.append($layers, linear-gradient(to right, var(--line) 1px, transparent 1px), comma); }
+
+  @if $h { $layers: list.append($layers, linear-gradient(to bottom, var(--line) 1px, transparent 1px), comma); }
+
+  background-image: $layers;
+  background-size: var(--cell) var(--cell);
+  background-position: var(--cell-x0) 0;
+}
+
+// Fade an element to the ground at its top and bottom edges.
+@mixin fade-edges($size) {
+  mask-image: linear-gradient(transparent, black $size, black calc(100% - #{$size}), transparent);
+}
+
+// Window shapes (ui/Window.astro). A point = an anchor (% of the box) plus a px offset, computed here so the CSS only gets
+// `50%` or `calc(50% + 12px)`: no trig, no zero lengths for the minifier to mangle.
+@function at($anchor, $off) {
+  $off: math.div(math.round($off * 100), 100);
+
+  @if $off == 0 { @return $anchor; }
+
+  @if $off > 0 { @return calc(#{$anchor} + #{$off}); }
+
+  @return calc(#{$anchor} - #{-$off});
+}
+
+// The mark as one polygon: frame with its top-left corner cut (c) and the bottom-right corner rounded (r),
+// wall w. Box = anchors a0 → a1 with px offsets o0 → o1. Same 16 points at both ends, so clip-path interpolates.
+@function ring($a0, $o0, $a1, $o1, $w, $c, $r) {
+  $ri: math.max($r - $w, 0px);
+  $p: (
+    at($a0, $o0 + $c) at($a0, $o0),
+    at($a1, $o1) at($a0, $o0),
+  );
+
+  @each $d in (0, 30, 60, 90) {
+    $t: math.div($d * math.$pi, 180);
+    $p: list.append($p, at($a1, $o1 - $r + $r * math.cos($t)) at($a1, $o1 - $r + $r * math.sin($t)), comma);
+  }
+
+  $p: list.append($p, at($a0, $o0) at($a1, $o1), comma);
+  $p: list.append($p, at($a0, $o0) at($a0, $o0 + $c), comma);
+  $p: list.append($p, at($a0, $o0 + $w) at($a0, $o0 + $c), comma);
+  $p: list.append($p, at($a0, $o0 + $w) at($a1, $o1 - $w), comma);
+
+  @each $d in (90, 60, 30, 0) {
+    $t: math.div($d * math.$pi, 180);
+    $p: list.append($p, at($a1, $o1 - $w - $ri + $ri * math.cos($t)) at($a1, $o1 - $w - $ri + $ri * math.sin($t)), comma);
+  }
+
+  $p: list.append($p, at($a1, $o1 - $w) at($a0, $o0 + $w), comma);
+  $p: list.append($p, at($a0, $o0 + $c) at($a0, $o0 + $w), comma);
+
+  @return polygon($p);
+}
+
+@function square($a, $o, $s) {
+  @return polygon(at($a, $o) at($a, $o), at($a, $o + $s) at($a, $o), at($a, $o + $s) at($a, $o + $s), at($a, $o) at($a, $o + $s));
+}
+
+// One viewport. Content sits low in the frame, inset from it on every side (min-height: never clips it).

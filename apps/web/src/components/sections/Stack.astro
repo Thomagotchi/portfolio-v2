@@ -1,0 +1,183 @@
+---
+// Pinned stack: the panel sticks (CSS sticky, 12vh) for ~22vh of scroll per chapter; scroll progress picks the
+// chapter, the red marker sits on the active label, tabs click to their scroll position.
+import Bracket from '@/components/ui/Bracket.astro';
+import Headline from '@/components/ui/Headline.astro';
+import Tag from '@/components/ui/Tag.astro';
+import Seam from '@/components/ui/Seam.astro';
+import type { StackBlock } from '@/lib/types';
+
+interface Props { block: StackBlock }
+const { block } = Astro.props;
+const id = block._key;
+---
+<section class="stk" data-stack style={`--n:${block.groups.length}`} aria-labelledby={`${id}-h`}>
+  <Seam />
+  <div class="stk__pin">
+    <div class="wrap stk__in">
+      <div class="stk__head">
+        {block.label && <Tag>{block.label}</Tag>}
+        <Headline heading={block.heading} id={`${id}-h`} />
+      </div>
+      <ul role="list" class="stk__tabs">
+        {block.groups.map((g, i) => (
+          <li><button class="tag-lg" type="button" aria-pressed={i === 0 ? 'true' : 'false'} aria-controls={`${id}-p${i}`} data-i={i}>{g.name}</button></li>
+        ))}
+      </ul>
+      <div class="stk__ruler" aria-hidden="true"><b></b></div>
+      <div class="stk__panels">
+        {block.groups.map((g, i) => (
+          <ul role="list" class:list={['stk__panel', { 'is-on is-in': i === 0 }]} id={`${id}-p${i}`} aria-label={g.name} data-inview="manual" inert={i !== 0}>
+            {g.tools.map((t) => <li><Bracket>{t}</Bracket></li>)}
+          </ul>
+        ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  import { ScrollTrigger } from '@/scripts/gsap';
+  import { scrollTo } from '@/scripts/scroll';
+
+  for (const sk of document.querySelectorAll<HTMLElement>('[data-stack]')) {
+    const btns = [...sk.querySelectorAll<HTMLButtonElement>('[data-i]')];
+    const panels = [...sk.querySelectorAll<HTMLElement>('.stk__panel')];
+    const ruler = sk.querySelector<HTMLElement>('.stk__ruler')!;
+    const marker = ruler.firstElementChild as HTMLElement;
+    const n = btns.length;
+    let cur = -1;
+
+    const show = (i: number) => {
+      if (i === cur) return;
+      cur = i;
+      btns.forEach((b, j) => b.setAttribute('aria-pressed', String(i === j)));
+      panels.forEach((p, j) => {
+        p.classList.toggle('is-on', i === j);
+        p.classList.remove('is-in');
+        p.inert = i !== j;
+      });
+      requestAnimationFrame(() => setTimeout(() => panels[i].classList.add('is-in'), 80));
+      const b = btns[i].getBoundingClientRect();
+      marker.style.transform = `translateY(${Math.round(b.top + b.height / 2 - ruler.getBoundingClientRect().top)}px)`;
+    };
+
+    const st = ScrollTrigger.create({
+      trigger: sk, start: 'top top', end: 'bottom bottom',
+      onUpdate: (s) => show(Math.min(n - 1, Math.floor(s.progress * n))),
+      onRefresh: (s) => { cur = -1; show(Math.min(n - 1, Math.floor(s.progress * n))); },
+    });
+    btns.forEach((b, i) => b.addEventListener('click', () => scrollTo(st.start + ((i + 0.5) / n) * (st.end - st.start))));
+  }
+</script>
+
+<style lang="scss">
+  .stk {
+    position: relative;
+    height: calc(100vh + 22vh * var(--n));
+  }
+
+  .stk__pin {
+    position: sticky;
+    top: 12vh;
+    padding-block: calc(var(--cell) * 2);
+  }
+
+  .stk__in {
+    display: grid;
+    grid-template-columns: 1fr;
+    row-gap: var(--space-block);
+
+    @include mq(md) {
+      grid-template-columns: minmax(0, 1fr) 56px minmax(0, 1fr);
+      gap: var(--space-block) var(--space-6);
+    }
+  }
+
+  .stk__head {
+    grid-column: 1 / -1;
+    display: grid;
+    gap: var(--space-block);
+
+    :global(h2) { max-width: 16ch; }
+  }
+
+  .stk__tabs {
+    display: grid;
+    gap: var(--space-1);
+    align-content: start;
+
+    button {
+      display: flex;
+      align-items: center;
+      gap: var(--space-inline);
+      min-height: 44px;
+      color: var(--muted);
+      transition: color 0.4s var(--ease-soft);
+
+      &::before {
+        content: '>';
+        color: var(--accent);
+        opacity: 0;
+        translate: -10px 0;
+        clip-path: inset(0 100% 0 0);
+        transition: opacity 0.3s var(--ease-soft), translate var(--duration-base) var(--ease-move), clip-path var(--duration-base) var(--ease-move);
+      }
+
+      &[aria-pressed='true'] {
+        color: var(--text);
+
+        &::before { opacity: 1; translate: 0; clip-path: inset(0); }
+      }
+    }
+  }
+
+  .stk__ruler {
+    position: relative;
+    display: none;
+    background: repeating-linear-gradient(to bottom, color-mix(in srgb, var(--text) 22%, transparent) 0 1px, transparent 1px 8px) center / 12px 100% no-repeat;
+
+    @include mq(md) { display: block; }
+
+    &::before, &::after {
+      content: '';
+      position: absolute;
+      left: 50%;
+      width: 24px;
+      height: 1px;
+      margin-left: -12px;
+      background: color-mix(in srgb, var(--text) 40%, transparent);
+    }
+
+    &::before { top: 0; }
+    &::after { bottom: 0; }
+
+    b {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      width: 32px;
+      height: 2px;
+      margin: -1px 0 0 -16px;
+      background: var(--accent);
+      transition: transform 0.7s var(--ease-move);
+    }
+  }
+
+  .stk__panels {
+    display: grid;
+    align-content: start;
+  }
+
+  .stk__panel {
+    grid-area: 1 / 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-5);
+    opacity: 0;
+    translate: 0 10px;
+    transition: opacity 0.5s var(--ease-soft), translate 0.7s var(--ease-move);
+
+    &:global(.is-on) { opacity: 1; translate: 0; }
+  }
+</style>

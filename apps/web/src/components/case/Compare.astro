@@ -1,0 +1,135 @@
+---
+// Before / after: two wireframes split by a line. A native range input covers the figure (drag anywhere,
+// arrow keys and Home/End from the keyboard); its value drives --x. No JS beyond input → --x.
+interface Props { before: string; after: string }
+const { before, after } = Astro.props;
+---
+<figure class="cmp" data-compare>
+  <div class="cmp__wf cmp__new" aria-hidden="true"><div class="hf"><u></u><u></u></div><div class="rw"><i></i><i></i><i></i></div><div class="ln"></div></div>
+  <div class="cmp__wf cmp__old" aria-hidden="true">{Array.from({ length: 8 }, () => <i></i>)}</div>
+  <input class="cmp__r" type="range" min="0" max="100" value="50" aria-label="Compare before and after" aria-valuetext="50% before" />
+  <i class="cmp__h" aria-hidden="true"></i>
+  <figcaption>
+    <span class="tag cmp__t cmp__t--l">{before}</span>
+    <span class="tag cmp__t cmp__t--r">{after}</span>
+  </figcaption>
+</figure>
+
+<script>
+  for (const f of document.querySelectorAll<HTMLElement>('[data-compare]')) {
+    const r = f.querySelector<HTMLInputElement>('input')!;
+    r.addEventListener('input', () => {
+      f.style.setProperty('--x', `${r.value}%`);
+      r.setAttribute('aria-valuetext', `${r.value}% before`);
+    });
+  }
+</script>
+
+<style lang="scss">
+  .cmp {
+    --x: 50%;
+
+    position: relative;
+    margin: 0;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    user-select: none;
+  }
+
+  .cmp__wf {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    gap: 4%;
+    padding: 7%;
+  }
+
+  // After (the rebuild): the notch frame, a hairline row, a rule.
+  .cmp__new {
+    grid-template-rows: 1fr 1.4fr 1fr;
+    background: var(--bg);
+
+    .hf {
+      position: relative;
+      display: grid;
+      align-content: center;
+      gap: 8%;
+      padding: 0 6%;
+      border: 1px solid var(--border);
+      clip-path: polygon(9px 0, 100% 0, 100% 100%, 0 100%, 0 9px, 9px 9px);
+
+      &::before { content: ''; position: absolute; top: 0; left: 0; width: 6px; height: 6px; background: var(--accent); }
+    }
+
+    u { display: block; width: 58%; height: 9%; min-height: 6px; background: var(--text); }
+    u + u { width: 36%; background: var(--muted); }
+
+    .rw {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+
+      i { background: var(--bg); }
+    }
+
+    .ln { border-top: 1px solid var(--border); }
+  }
+
+  // Before (the template): dashed boxes, clipped to the left of the line.
+  .cmp__old {
+    grid-template-rows: 0.4fr 0.6fr 1fr 1fr;
+    grid-template-columns: repeat(3, 1fr);
+    background: var(--surface);
+    clip-path: inset(0 calc(100% - var(--x)) 0 0);
+
+    i {
+      background: color-mix(in srgb, var(--text) 14%, transparent);
+      border: 1px dashed color-mix(in srgb, var(--text) 25%, transparent);
+
+      &:nth-child(-n + 2) { grid-column: 1 / -1; }
+    }
+  }
+
+  .cmp__t {
+    position: absolute;
+    bottom: var(--space-3);
+    z-index: 2;
+    max-width: 45%;
+    padding: var(--space-1) var(--space-2);
+    background: var(--bg);
+    border: 1px solid var(--border);
+
+    &--l { left: var(--space-3); }
+    &--r { right: var(--space-3); text-align: right; }
+  }
+
+  .cmp__h {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: var(--x);
+    z-index: 3;
+    width: 1px;
+    background: var(--text);
+    pointer-events: none;
+
+    // Handle: 11px pixel, the whole figure is the hit area (≥ 44px everywhere).
+    &::after { content: ''; position: absolute; top: calc(50% - 5px); left: -5px; width: 11px; height: 11px; background: var(--accent); }
+  }
+
+  .cmp__r {
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    opacity: 0;
+    cursor: ew-resize;
+
+    &:focus-visible ~ .cmp__h { outline: 2px solid var(--accent); outline-offset: 2px; }
+  }
+</style>

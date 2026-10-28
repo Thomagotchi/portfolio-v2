@@ -1,0 +1,13 @@
+---
+// Portable text `figure` block → the matching chapter figure.
+import Compare from './Compare.astro';
+import Lighthouse from './Lighthouse.astro';
+import Steps from './Steps.astro';
+import type { Figure } from '@/lib/types';
+
+interface Props { node: Figure }
+const { node } = Astro.props;
+---
+{node.kind === 'steps' && <Steps steps={node.steps} />}
+{node.kind === 'compare' && <Compare before={node.before} after={node.after} />}
+{node.kind === 'lighthouse' && <Lighthouse scores={node.scores} />}

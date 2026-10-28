@@ -1,0 +1,52 @@
+{
+  "name": "portfolio-v2",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.15.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": ">=24",
+      "onFail": "error"
+    },
+    "packageManager": {
+      "name": "pnpm",
+      "onFail": "error"
+    }
+  },
+  "scripts": {
+    "dev": "pnpm tokens && pnpm --parallel --filter web --filter tokens dev",
+    "dev:studio": "pnpm --filter studio dev",
+    "tokens": "pnpm --filter tokens build",
+    "build": "pnpm tokens && pnpm --filter web build",
+    "lint": "eslint . && stylelint \"apps/web/src/**/*.{scss,astro}\"",
+    "typecheck": "pnpm --filter web check",
+    "validate": "node scripts/check-css.mjs && html-validate --config .html-validate.json \"apps/web/dist/**/*.html\" && linkinator apps/web/dist/client --recurse --clean-urls --skip \"^https?://(?!localhost|127\\\\.|\\\\[)\"",
+    "lhci": "lhci autorun",
+    "test:a11y": "playwright test a11y",
+    "test:unit": "node --test apps/web/src/lib/*.test.ts",
+    "check": "pnpm lint && pnpm test:unit && pnpm build && pnpm typecheck && pnpm validate && pnpm test:a11y && pnpm test:3d && pnpm lhci",
+    "new:section": "node scripts/new-section.mjs",
+    "test:3d": "playwright test scene",
+    "shot": "node scripts/shot.mjs",
+    "seed": "node scripts/seed.mjs && pnpm --filter studio exec sanity dataset import seed.ndjson production --replace",
+    "hero:check": "node scripts/hero-check.mjs"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
+    "@lhci/cli": "^0.15.1",
+    "@playwright/test": "^1.64.1",
+    "eslint": "^10.13.0",
+    "eslint-plugin-astro": "^3.2.1",
+    "html-validate": "^11.17.0",
+    "linkinator": "^8.1.0",
+    "postcss-html": "^1.8.0",
+    "stylelint": "^17.16.0",
+    "stylelint-config-standard-scss": "^17.0.0",
+    "typescript": "~6.0.0",
+    "typescript-eslint": "^8.72.1"
+  }
+}

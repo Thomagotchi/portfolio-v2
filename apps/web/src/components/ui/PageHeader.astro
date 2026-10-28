@@ -1,0 +1,51 @@
+---
+// Inner-page header: tag, h1, lede, then the slot (meta cells). Rises out of a mask at first paint (CSS only,
+// the h1 stays the LCP). The slot sits outside the mask so cells and frames keep their own entries.
+// slot="aside" (About portrait): a second column, 7 + 5 cells on lg, under the text below lg.
+import Headline from './Headline.astro';
+import Tag from './Tag.astro';
+import type { Headline as H } from '@/lib/types';
+
+interface Props { label: string; heading: H; lede?: string; class?: string }
+const { label, heading, lede, class: cls } = Astro.props;
+const aside = Astro.slots.has('aside');
+---
+<header class:list={['phd', cls]}>
+  <div class:list={['wrap phd__in', { 'phd__in--2': aside }]}>
+    <div class="phd__main">
+      <div class="phd__text">
+        <div class="rise"><Tag>{label}</Tag></div>
+        <div class="rise"><Headline heading={heading} as="h1" /></div>
+        {lede && <div class="rise"><p class="lede">{lede}</p></div>}
+      </div>
+      <slot />
+    </div>
+    {aside && <slot name="aside" />}
+  </div>
+</header>
+
+<style lang="scss">
+  .phd { padding-block: calc(var(--cell) * 2.5) calc(var(--cell) * 2); }
+
+  .phd__in, .phd__main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-block);
+  }
+
+  .phd__in--2 {
+    @include mq(lg) {
+      grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+      align-items: start;
+      gap: var(--cell);
+    }
+  }
+
+  .phd__text {
+    display: grid;
+    justify-items: start;
+    gap: var(--space-head);
+
+    :global(h1) { max-width: 16ch; }
+  }
+</style>

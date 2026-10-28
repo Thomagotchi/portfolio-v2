@@ -1,0 +1,37 @@
+---
+// Figure as reels of 0–9. Static: rolls to its value when the parent [data-inview] enters.
+// live: the value changes later through scripts/odometer.ts setOdometer() (pricing total, timeline year),
+// so reels roll at once and reel styles are global (the script creates them).
+interface Props { value: string; live?: boolean; class?: string }
+const { value, live = false, class: cls } = Astro.props;
+const shape = [...value].map((c) => (/\d/.test(c) ? 'd' : c)).join('');
+---
+<span class:list={['odo', { 'odo--live': live }, cls]} data-shape={shape}><span class="sr-only">{value}</span>{[...value].map((ch, i) => /\d/.test(ch)
+  ? <span class="reel" aria-hidden="true" style={`--v:${ch};--i:${i}`}>{Array.from({ length: 10 }, (_, d) => <b>{d}</b>)}</span>
+  : <span class="reel" aria-hidden="true" style={`--i:${i}`}><b>{ch === ' ' ? '\u00a0' : ch}</b></span>)}</span>
+
+<style lang="scss">
+  .odo {
+    display: flex;
+    height: 1.15em;
+    overflow: hidden;
+
+    @include text(figure);
+
+    line-height: 1.15;
+    font-variant-numeric: tabular-nums; // every reel as wide as its digit: no gap after a 1
+
+    :global(.reel) {
+      display: block;
+      translate: 0 calc(var(--v, 0) * -1.15em);
+    }
+
+    :global(b) { display: block; height: 1.15em; font-weight: inherit; }
+  }
+
+  @include motion {
+    .odo :global(.reel) { transition: translate 1.6s var(--ease-move) calc(1.3s + var(--i, 0) * 0.08s); }
+    .odo--live :global(.reel) { transition: translate 0.8s var(--ease-move) calc(var(--i, 0) * 0.04s); }
+    :global(.js [data-inview]:not(.is-in)) .odo :global(.reel) { translate: 0; transition: none; }
+  }
+</style>

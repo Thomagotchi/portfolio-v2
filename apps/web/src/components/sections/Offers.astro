@@ -1,0 +1,117 @@
+---
+// Offers index: number · title · meta rows; hairlines draw in and rows rise on enter.
+// Hover: a 2px accent bar slides in before the title. Rows link only when an href is set.
+import Button from '@/components/ui/Button.astro';
+import Tag from '@/components/ui/Tag.astro';
+import Seam from '@/components/ui/Seam.astro';
+import type { OffersBlock } from '@/lib/types';
+
+interface Props { block: OffersBlock }
+const { block } = Astro.props;
+---
+<section class="section of" id={block.anchor} aria-label={block.label ?? 'Offers'}>
+  <Seam />
+  <div class="wrap of__in">
+    {block.label && <Tag>{block.label}</Tag>}
+    <ol role="list" class="of__rows" data-inview data-start="top 80%">
+      {block.items.map((o, i) => {
+        const R = o.href ? 'a' : 'div';
+        return (
+          <li style={`--d:${i * 0.15}s`}>
+            <R class="ix" href={o.href}>
+              <span class="ix__n" aria-hidden="true">{String(i + 1).padStart(2, '0')}</span>
+              <h3 class="ix__t">{o.title}</h3>
+              {o.meta && <p class="ix__m">{o.meta}</p>}
+            </R>
+          </li>
+        );
+      })}
+    </ol>
+    {block.ctas?.length ? (
+      <div class="of__ctas">{block.ctas.map((c) => <Button href={c.href} variant={c.variant}>{c.label}</Button>)}</div>
+    ) : null}
+  </div>
+</section>
+
+<style lang="scss">
+  .of__in {
+    display: grid;
+    gap: var(--space-block);
+  }
+
+  .of__rows {
+    border-bottom: 1px solid var(--border);
+    margin-left: calc(var(--tx) * -1);
+
+    li { position: relative; }
+
+    li::before {
+      content: '';
+      position: absolute;
+      inset: 0 0 auto;
+      height: 1px;
+      background: var(--border);
+      transform-origin: left;
+    }
+  }
+
+  .ix {
+    display: grid;
+    grid-template-columns: 4em 1fr;
+    gap: var(--space-2) var(--space-4);
+    align-items: baseline;
+    padding-block: var(--space-card);
+    padding-left: var(--tx);
+    color: var(--text);
+    text-decoration: none;
+
+    @include mq(md) { grid-template-columns: 4em 1fr auto; }
+  }
+
+  .ix__n { @include text(mono); color: var(--muted); }
+
+  .ix__t {
+    display: flex;
+    align-items: center;
+
+    &::before {
+      content: '';
+      flex: none;
+      width: 0;
+      height: 2px;
+      background: var(--accent);
+      transition: width 0.5s var(--ease-move), margin 0.5s var(--ease-move);
+    }
+
+    .ix:is(:hover, :focus-visible) &::before { width: 18px; margin-right: 12px; }
+  }
+
+  .ix__m {
+    grid-column: 2;
+
+    @include text(small);
+
+    color: var(--muted);
+
+    @include mq(md) { grid-column: 3; text-align: right; }
+  }
+
+  .of__ctas {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-4);
+
+    @include mq(md) { flex-flow: row wrap; }
+  }
+
+  @include motion {
+    .of__rows li::before { transition: transform 1.2s var(--ease-move) var(--d); }
+    .ix > * { transition: opacity 0.8s var(--ease-soft) calc(var(--d) + 0.25s), translate 1s var(--ease-move) calc(var(--d) + 0.25s); }
+
+    :global(.js) .of__rows:not(:global(.is-in)) {
+      li::before { transform: scaleX(0); }
+      .ix > * { opacity: 0; translate: 0 16px; }
+    }
+  }
+</style>

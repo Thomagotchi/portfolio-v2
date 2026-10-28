@@ -1,0 +1,101 @@
+---
+// Lighthouse before / after: a Before / After toggle (aria-pressed) and four bars with counting scores.
+// Server HTML shows the after state; on scroll-in it plays before, then after.
+interface Props { scores: { label: string; before: number; after: number }[] }
+const { scores } = Astro.props;
+---
+<div class="lh" data-lh>
+  <div class="lh__seg" role="group" aria-label="Measure">
+    <button type="button" aria-pressed="false" data-m="before">Before</button>
+    <button type="button" aria-pressed="true" data-m="after">After</button>
+  </div>
+  <ul role="list" class="lh__rows">
+    {scores.map((s) => (
+      <li data-before={s.before} data-after={s.after} style={`--v:${s.after / 100}`}>
+        <span>{s.label}</span><i aria-hidden="true"><b></b></i><span class="mono">{s.after}</span>
+      </li>
+    ))}
+  </ul>
+</div>
+
+<script>
+  import { ScrollTrigger, reduceMotion } from '@/scripts/gsap';
+
+  for (const lh of document.querySelectorAll<HTMLElement>('[data-lh]')) {
+    const btns = [...lh.querySelectorAll<HTMLButtonElement>('[data-m]')];
+    const rows = [...lh.querySelectorAll<HTMLElement>('li')];
+    const rm = reduceMotion();
+    const show = (m: 'before' | 'after') => {
+      btns.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.m === m)));
+      lh.classList.toggle('is-before', m === 'before');
+      for (const r of rows) {
+        const v = Number(r.dataset[m]);
+        const n = r.lastElementChild as HTMLElement;
+        const from = Number(n.textContent) || 0;
+        const t0 = performance.now();
+        r.style.setProperty('--v', String(v / 100));
+        const step = (now: number) => {
+          const k = rm ? 1 : Math.min(1, (now - t0) / 900);
+          n.textContent = String(Math.round(from + (v - from) * (1 - (1 - k) ** 3)));
+          if (k < 1) requestAnimationFrame(step);
+        };
+        requestAnimationFrame(step);
+      }
+    };
+    btns.forEach((b) => b.addEventListener('click', () => show(b.dataset.m as 'before' | 'after')));
+    if (!rm) ScrollTrigger.create({ trigger: lh, start: 'top 75%', once: true, onEnter: () => { show('before'); setTimeout(() => show('after'), 1100); } });
+  }
+</script>
+
+<style lang="scss">
+  .lh {
+    display: grid;
+    gap: var(--space-5);
+  }
+
+  .lh__seg {
+    display: flex;
+    justify-self: start;
+    border: 1px solid var(--border);
+
+    button {
+      min-height: 44px;
+      padding-inline: var(--space-4);
+      color: var(--muted);
+      transition: color var(--duration-fast) var(--ease-soft), background var(--duration-fast) var(--ease-soft);
+
+      &[aria-pressed='true'] { color: var(--text); background: var(--surface); }
+      + button { border-left: 1px solid var(--border); }
+    }
+  }
+
+  .lh__rows {
+    display: grid;
+    gap: var(--space-4);
+
+    li {
+      display: grid;
+      grid-template-columns: minmax(0, 9em) 1fr 3ch;
+      gap: var(--space-4);
+      align-items: center;
+    }
+
+    i { position: relative; height: 1px; background: var(--border); }
+
+    b {
+      position: absolute;
+      top: -1px;
+      left: 0;
+      width: 100%;
+      height: 3px;
+      background: var(--text);
+      transform: scaleX(var(--v, 0));
+      transform-origin: left;
+      transition: transform 1s var(--ease-move), background var(--duration-fast) var(--ease-soft);
+    }
+
+    .mono { text-align: right; }
+  }
+
+  .lh:global(.is-before) b { background: var(--muted); }
+</style>

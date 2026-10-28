@@ -1,0 +1,198 @@
+---
+// DA CTAs. primary: label roll · accent: slash wipe · secondary: corner lock · surface: perimeter draw · link: underline draw.
+// Sizes from --cta-*; lgSize applies from the lg breakpoint (hero: md → lg). Opaque fills only, radius 0.
+import type { Cta } from '@/lib/types';
+
+type Size = 'sm' | 'md' | 'lg';
+interface Props { href?: string; variant?: Cta['variant']; size?: Size; lgSize?: Size; class?: string; [k: string]: unknown }
+const { href, variant = 'primary', size = 'md', lgSize, class: cls, ...rest } = Astro.props;
+const T = href ? 'a' : 'button';
+const label = await Astro.slots.render('default');
+const arrow = '<svg class="arw" viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 10 10 2M4 2h6v6"/></svg>';
+---
+<T class:list={['cta', `cta--${variant}`, `cta--${size}`, lgSize && `cta--lg-${lgSize}`, cls]} href={href} type={href ? undefined : 'button'} {...rest}>
+  {variant === 'primary' && <span class="roll"><span set:html={label} /><span aria-hidden="true" set:html={label} /></span>}
+  {variant === 'accent' && <><span class="t" set:html={label} /><span class="aw" aria-hidden="true" set:html={arrow + arrow} /></>}
+  {variant === 'secondary' && <span set:html={label} />}
+  {variant === 'surface' && <><span set:html={label} /><Fragment set:html={arrow} /><span class="pm" aria-hidden="true"><i></i><i></i><i></i><i></i></span></>}
+  {variant === 'link' && <span set:html={label} />}
+</T>
+
+<style lang="scss">
+  @mixin size($s) {
+    height: var(--cta-#{$s}-height);
+    padding-inline: var(--cta-#{$s}-padding-x);
+    font-size: var(--cta-#{$s}-font-size);
+  }
+
+  .cta {
+    position: relative;
+    isolation: isolate;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-inline);
+    border: 1px solid transparent;
+    border-radius: var(--radius-none);
+    font-family: var(--font-body);
+    font-weight: 600;
+    line-height: 1;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .cta--sm { @include size(sm);
+
+ min-height: 44px;
+
+ @include mq(md) { min-height: 0; } }
+  .cta--md { @include size(md); }
+  .cta--lg { @include size(lg); }
+
+  @include mq(lg) {
+    .cta--lg-sm { @include size(sm); }
+    .cta--lg-md { @include size(md); }
+    .cta--lg-lg { @include size(lg); }
+  }
+
+  :global(.arw) { flex: none; }
+
+  // Corner brackets shared by primary (outer) and secondary (inner).
+  .cta--primary, .cta--secondary {
+    &::before, &::after {
+      content: '';
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      border: 0 solid var(--text);
+      opacity: 0;
+      transition: translate 0.55s var(--ease-move), opacity 0.3s var(--ease-soft);
+    }
+
+    &::before { border-top-width: 2px; border-left-width: 2px; translate: -6px -6px; }
+    &::after { border-bottom-width: 2px; border-right-width: 2px; translate: 6px 6px; }
+
+    &:is(:hover, :focus-visible)::before, &:is(:hover, :focus-visible)::after { opacity: 1; translate: 0; }
+  }
+
+  .cta--primary {
+    background: var(--action);
+    color: var(--on-action);
+    border-color: var(--action);
+
+    &::before { left: -7px; top: -7px; }
+    &::after { right: -7px; bottom: -7px; }
+  }
+
+  .roll {
+    display: grid;
+    overflow: clip;
+    overflow-clip-margin: 3px;
+
+    > * { grid-area: 1 / 1; transition: translate 0.65s var(--ease-move); }
+
+    // The copy waits below, hidden (not just clipped: contrast checkers can't see a clip and test it on
+    // whatever lies behind). It shows at once on hover and hides after its roll out.
+    > :last-child { translate: 0 calc(100% + 12px); visibility: hidden; transition: translate 0.65s var(--ease-move), visibility 0s 0.65s; }
+
+    .cta:is(:hover, :focus-visible) & > :first-child { translate: 0 calc(-100% - 12px); }
+    .cta:is(:hover, :focus-visible) & > :last-child { translate: 0; visibility: visible; transition-delay: 0s; }
+  }
+
+  .cta--accent {
+    overflow: hidden;
+    background: var(--accent);
+    color: var(--bg);
+
+    &::before {
+      content: '';
+      position: absolute;
+      inset: -2px -40%;
+      z-index: -1;
+      background: var(--text);
+      transform: translateX(-102%) skewX(-45deg);
+      transition: transform 0.75s var(--ease-move);
+    }
+
+    &:is(:hover, :focus-visible) {
+      background: var(--text);
+      transition: background-color 0s 0.6s;
+
+      &::before { transform: translateX(0) skewX(-45deg); }
+    }
+  }
+
+  .aw {
+    position: relative;
+    width: 12px;
+    height: 12px;
+    overflow: hidden;
+
+    :global(svg) { position: absolute; inset: 0; transition: translate 0.55s var(--ease-move); }
+    :global(svg + svg) { translate: -14px 14px; }
+
+    .cta:is(:hover, :focus-visible) & :global(svg:first-child) { translate: 14px -14px; }
+    .cta:is(:hover, :focus-visible) & :global(svg + svg) { translate: 0; }
+  }
+
+  .cta--secondary {
+    background: var(--bg);
+    color: var(--text);
+    border-color: color-mix(in srgb, var(--text) 38%, var(--bg));
+    font-weight: 500;
+    transition: border-color 0.45s var(--ease-soft);
+
+    &::before { left: 3px; top: 3px; }
+    &::after { right: 3px; bottom: 3px; }
+    &:is(:hover, :focus-visible) { border-color: var(--text); }
+  }
+
+  .cta--surface {
+    background: var(--surface);
+    color: var(--text);
+    border-color: color-mix(in srgb, var(--text) 22%, var(--surface));
+
+    :global(.arw) { transition: translate 0.55s var(--ease-move); }
+    &:is(:hover, :focus-visible) :global(.arw) { translate: 3px -3px; }
+  }
+
+  .pm i {
+    position: absolute;
+    background: var(--text);
+    transition: scale 0.25s var(--ease-soft);
+
+    &:nth-child(1) { inset: -1px -1px auto; height: 1px; scale: 0 1; transform-origin: left; }
+    &:nth-child(2) { inset: -1px -1px -1px auto; width: 1px; scale: 1 0; transform-origin: top; }
+    &:nth-child(3) { inset: auto -1px -1px; height: 1px; scale: 0 1; transform-origin: right; }
+    &:nth-child(4) { inset: -1px auto -1px -1px; width: 1px; scale: 1 0; transform-origin: bottom; }
+
+    .cta:is(:hover, :focus-visible) & { scale: 1; transition-timing-function: linear; }
+    .cta:is(:hover, :focus-visible) &:nth-child(2) { transition-delay: 0.25s; }
+    .cta:is(:hover, :focus-visible) &:nth-child(3) { transition-delay: 0.5s; }
+    .cta:is(:hover, :focus-visible) &:nth-child(4) { transition-delay: 0.75s; }
+  }
+
+  .cta--link {
+    height: auto;
+    padding: 0;
+    color: var(--text);
+    font-weight: 400;
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset: auto 0 -4px;
+      height: 1px;
+      background: currentcolor;
+      scale: 0 1;
+      transform-origin: left;
+      transition: scale 0.5s var(--ease-move);
+    }
+
+    &:is(:hover, :focus-visible)::after { scale: 1; }
+  }
+
+  .cta:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+  .cta[disabled] { opacity: 0.4; pointer-events: none; }
+</style>

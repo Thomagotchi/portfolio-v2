@@ -1,0 +1,7 @@
+---
+import type { Headline } from '@/lib/types';
+
+interface Props { heading: Headline; as?: 'h1' | 'h2' | 'h3'; class?: string; id?: string }
+const { heading, as: H = 'h2', class: cls, id } = Astro.props;
+---
+<H class={cls} id={id}>{heading.lead}{heading.muted && <> <em>{heading.muted}</em></>}{heading.tail && ` ${heading.tail}`}</H>

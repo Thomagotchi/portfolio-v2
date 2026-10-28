@@ -1,0 +1,84 @@
+---
+// FAQ accordion: a <button aria-expanded> per question, the answer opens with grid-template-rows (0fr → 1fr),
+// the plus turns into a minus. Answers stay in the DOM (searchable, crawlable); closed ones are inert.
+// level: the question heading (h3 under a section h2; h2 when the section only has a tag).
+interface Props { items: { question: string; answer: string }[]; id: string; open?: number; level?: 'h2' | 'h3' }
+const { items, id, open = -1, level: H = 'h3' } = Astro.props;
+---
+<div class="acc" data-acc>
+  {items.map((q, i) => (
+    <div class="acc__i">
+      <H class="q"><button type="button" aria-expanded={i === open ? 'true' : 'false'} aria-controls={`${id}-${i}`} id={`${id}-${i}-q`}>{q.question}<span class="plus" aria-hidden="true"></span></button></H>
+      <div class="acc__a" id={`${id}-${i}`} inert={i !== open}><div><p>{q.answer}</p></div></div>
+    </div>
+  ))}
+</div>
+
+<script>
+  for (const acc of document.querySelectorAll<HTMLElement>('[data-acc]')) {
+    acc.addEventListener('click', (e) => {
+      const b = (e.target as HTMLElement).closest<HTMLButtonElement>('button[aria-expanded]');
+      if (!b) return;
+      const open = b.getAttribute('aria-expanded') !== 'true';
+      b.setAttribute('aria-expanded', String(open));
+      document.getElementById(b.getAttribute('aria-controls')!)!.inert = !open;
+    });
+  }
+</script>
+
+<style lang="scss">
+  .acc { border-top: 1px solid var(--border); }
+  .acc__i { border-bottom: 1px solid var(--border); }
+
+  .q { @include text(body); }
+
+  button {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-5);
+    width: 100%;
+    min-height: 44px;
+    padding-block: var(--space-5);
+    text-align: left;
+
+    @include text(lede);
+  }
+
+  .plus {
+    position: relative;
+    flex: none;
+    width: 12px;
+    height: 12px;
+
+    &::before, &::after {
+      content: '';
+      position: absolute;
+      top: 5.5px;
+      left: 0;
+      width: 12px;
+      height: 1px;
+      background: currentcolor;
+      transition: transform var(--duration-base) var(--ease-move);
+    }
+
+    &::after { transform: rotate(90deg); }
+  }
+
+  [aria-expanded='true'] .plus::after { transform: none; }
+
+  .acc__a {
+    display: grid;
+    grid-template-rows: 0fr;
+
+    > div { overflow: hidden; }
+
+    p { max-width: 60ch; padding-bottom: var(--space-5); color: var(--muted); }
+  }
+
+  .q:has([aria-expanded='true']) + .acc__a { grid-template-rows: 1fr; }
+
+  @include motion {
+    .acc__a { transition: grid-template-rows 0.55s var(--ease-move); }
+  }
+</style>

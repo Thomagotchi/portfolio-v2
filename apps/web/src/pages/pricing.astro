@@ -1,0 +1,393 @@
+---
+// Pricing: three price points, the simulator (controls 7 cells beside a sticky estimate 5 cells on lg; below
+// lg the estimate is a slim total bar stuck to the bottom with a Details toggle), then the FAQ.
+// Every figure comes from the Sanity pricing singleton; the maths is lib/estimate.ts (unit-tested).
+import Base from '@/layouts/Base.astro';
+import Accordion from '@/components/ui/Accordion.astro';
+import Button from '@/components/ui/Button.astro';
+import Odometer from '@/components/ui/Odometer.astro';
+import PageHeader from '@/components/ui/PageHeader.astro';
+import Section from '@/components/ui/Section.astro';
+import Chips from '@/components/form/Chips.astro';
+import Fieldset from '@/components/form/Fieldset.astro';
+import Switch from '@/components/form/Switch.astro';
+import { contactQuery, estimate, eur, initialState } from '@/lib/estimate';
+import { getContact, getPricing, getSite } from '@/lib/sanity';
+
+const [site, pr, ct] = await Promise.all([getSite(), getPricing(), getContact()]);
+const s0 = initialState(pr);
+const e0 = estimate(s0, pr);
+const legend = ['Base', 'Extra pages', 'Options', pr.options.filter((o) => o.pct).map((o) => o.label).join(', ') || 'Percent options', 'Express'];
+const t0 = pr.types[s0.type];
+const pct = (n: number) => `${((n - 1) / (pr.maxPages - 1)) * 100}%`;
+const jsonLd = [{
+  '@type': 'Service', name: 'Website design, development and care', provider: { '@id': `${Astro.site}#person` }, areaServed: 'FR',
+  offers: [
+    ...pr.points.map((p) => ({
+      '@type': 'Offer', name: p.title, category: p.label, priceCurrency: 'EUR',
+      priceSpecification: { '@type': p.per ? 'UnitPriceSpecification' : 'PriceSpecification', minPrice: p.from, priceCurrency: 'EUR', valueAddedTaxIncluded: false, ...(p.per && { unitText: 'MONTH' }) },
+    })),
+    { '@type': 'AggregateOffer', name: 'Website projects', priceCurrency: 'EUR', lowPrice: Math.min(...pr.types.map((t) => t.base)), highPrice: estimate({ type: pr.types.length - 1, pages: pr.maxPages, opts: pr.options.map(() => true), delivery: pr.delivery.length - 1, care: 0 }, pr).total },
+  ],
+}, { '@type': 'FAQPage', mainEntity: pr.faq.map((f) => ({ '@type': 'Question', name: f.question, acceptedAnswer: { '@type': 'Answer', text: f.answer } })) }];
+---
+<Base title="Pricing" site={site} seo={pr.seo} jsonLd={jsonLd}>
+  <PageHeader label={pr.label} heading={pr.heading} lede={pr.lede} />
+
+  <Section label="Price points">
+    <ul role="list" class="cells pp" style={"--n:1;--n-md:3"}>
+      {pr.points.map((p, i) => (
+        <li>
+          <span class="tag">{p.label}</span>
+          <h2 class="pp__t">{p.title}</h2>
+          <p class="pp__v"><span class="muted">from</span> {eur(p.from)} €{p.per && <small>{p.per}</small>}</p>
+          <ul role="list" class="pp__l">{p.items.map((x) => <li>{x}</li>)}</ul>
+          <Button variant="link" data-point={i} aria-controls="simulator">Use in the simulator ↓</Button>
+        </li>
+      ))}
+    </ul>
+  </Section>
+
+  <Section label={pr.simLabel} heading={pr.simHeading} id="simulator">
+    <div class="sim" data-sim>
+      <div class="sim__c" data-sim-form>
+        <Fieldset n={1} legend="Type">
+          <Chips name="type" cols={pr.types.length} checked={['0']} options={pr.types.map((t, i) => ({ label: t.label, note: t.note, value: String(i) }))} />
+        </Fieldset>
+        <Fieldset n={2} legend="Pages">
+          <div class="rg" style={`--p:${pct(s0.pages)};--inc:${pct(t0.pages)};--tw:${100 / (pr.maxPages - 1)}%`}>
+            <div class="rg__v"><label for="pages"><b data-pages>{String(s0.pages).padStart(2, '0')}</b> pages</label><span class="mono" data-included>{t0.pages} included · then {eur(pr.pagePrice)} € each</span></div>
+            <input id="pages" name="pages" type="range" min="1" max={pr.maxPages} value={s0.pages} />
+            <div class="rg__t" aria-hidden="true"><i></i></div>
+          </div>
+        </Fieldset>
+        <Fieldset n={3} legend="Options">
+          <div class="ops">
+            {pr.options.map((o, i) => <Switch name="opt" value={String(i)} label={o.label} note={o.note} checked={!!o.on} price={o.pct ? `+ ${o.pct} %` : `+ ${eur(o.price ?? 0)} €`} />)}
+          </div>
+        </Fieldset>
+        <Fieldset n={4} legend="Delivery">
+          <Chips name="delivery" cols={pr.delivery.length} checked={['0']} options={pr.delivery.map((d, i) => ({ label: d.label, note: d.pct ? `+ ${d.pct} %${d.note ? `, ${d.note}` : ''}` : 'Agreed dates', value: String(i) }))} />
+        </Fieldset>
+        <Fieldset n={5} legend="Care after launch">
+          <Chips name="care" cols={pr.care.length} checked={['0']} options={pr.care.map((c, i) => ({ label: c.label, note: c.month ? `${eur(c.month)} € / month` : 'Hand-over only', value: String(i) }))} />
+        </Fieldset>
+      </div>
+
+      <aside class="est" aria-label="Estimate" data-est>
+        <div class="est__tot">
+          <span class="tag">Estimate · excl. VAT</span>
+          <p class="est__v"><Odometer value={eur(e0.total)} live class="est__odo" /><span>€</span></p>
+          <p class="sr-only" aria-live="polite" data-said>{eur(e0.total)} € excl. VAT</p>
+          <button class="est__more" type="button" aria-expanded="false" aria-controls="est-details" data-more>Details</button>
+        </div>
+        <div class="est__details" id="est-details">
+          <div>
+            <div class="sbar" aria-hidden="true">{e0.parts.map((v) => <i style={`--w:${(v / e0.total) * 100}%`}></i>)}</div>
+            <ul role="list" class="slg">
+              {legend.map((l, i) => <li class:list={{ 'is-nil': !e0.parts[i] }}><i aria-hidden="true"></i><span>{l}</span><span class="mono" data-part={i}>{eur(e0.parts[i])} €</span></li>)}
+            </ul>
+          </div>
+          <dl class="kv">
+            <div><dt class="tag">Duration</dt><dd class="mono" data-weeks>≈ {String(e0.weeks).replace('.', ',')} weeks</dd></div>
+            <div><dt class="tag">Deposit {pr.deposit} %</dt><dd class="mono" data-deposit>{eur(e0.deposit)} €</dd></div>
+            <div><dt class="tag">Care</dt><dd class="mono" data-care>None</dd></div>
+          </dl>
+          {pr.placeholder && <p class="small muted">Placeholder prices, rounded to 10 €.</p>}
+        </div>
+        <div class="est__go">
+          <Button href={`/contact?${contactQuery(s0, pr, ct.budgets)}`} variant="accent" data-send>Send this estimate</Button>
+        </div>
+      </aside>
+    </div>
+    <script type="application/json" id="pricing-data" set:html={JSON.stringify({ pr, budgets: ct.budgets }).replace(/</g, '\\u003c')}></script>
+  </Section>
+
+  <Section label={pr.faqLabel}>
+    <Accordion items={pr.faq} id="faq" open={0} level="h2" />
+  </Section>
+</Base>
+
+<script>
+  import { contactQuery, estimate, eur, type EstimateState } from '@/lib/estimate';
+  import { setOdometer } from '@/scripts/odometer';
+  import { scrollTo } from '@/scripts/scroll';
+  import type { Pricing } from '@/lib/types';
+
+  const root = document.querySelector<HTMLElement>('[data-sim]');
+  const data = document.getElementById('pricing-data');
+  if (root && data) {
+    const { pr, budgets } = JSON.parse(data.textContent!) as { pr: Pricing; budgets: string[] };
+    const form = root.querySelector<HTMLElement>('[data-sim-form]')!;
+    const $ = <T extends HTMLElement>(sel: string) => root.querySelector<T>(sel)!;
+    const range = form.querySelector<HTMLInputElement>('[name="pages"]')!;
+    const pct = (n: number) => `${((n - 1) / (pr.maxPages - 1)) * 100}%`;
+    const radio = (n: string) => Number(form.querySelector<HTMLInputElement>(`[name="${n}"]:checked`)?.value ?? 0);
+    const state = (): EstimateState => ({
+      type: radio('type'), pages: Number(range.value), delivery: radio('delivery'), care: radio('care'),
+      opts: pr.options.map((_, i) => !!form.querySelector<HTMLInputElement>(`[name="opt"][value="${i}"]:checked`)),
+    });
+    let lastType = radio('type');
+
+    const draw = () => {
+      const s = state();
+      // A bigger type never shows fewer pages than it includes.
+      if (s.type !== lastType) { lastType = s.type; s.pages = Math.max(s.pages, pr.types[s.type].pages); range.value = String(s.pages); }
+      const t = pr.types[s.type], e = estimate(s, pr);
+      const rg = range.closest<HTMLElement>('.rg')!;
+      rg.style.setProperty('--p', pct(s.pages));
+      rg.style.setProperty('--inc', pct(t.pages));
+      $('[data-pages]').textContent = String(s.pages).padStart(2, '0');
+      $('[data-included]').textContent = `${t.pages} included · then ${eur(pr.pagePrice)} € each`;
+      setOdometer($('.est__odo'), eur(e.total));
+      $('[data-said]').textContent = `${eur(e.total)} € excl. VAT`;
+      root.querySelectorAll<HTMLElement>('.sbar i').forEach((seg, i) => seg.style.setProperty('--w', `${(e.parts[i] / e.total) * 100}%`));
+      root.querySelectorAll<HTMLElement>('[data-part]').forEach((el, i) => { el.textContent = `${eur(e.parts[i])} €`; el.parentElement!.classList.toggle('is-nil', !e.parts[i]); });
+      $('[data-weeks]').textContent = `≈ ${String(e.weeks).replace('.', ',')} weeks`;
+      $('[data-deposit]').textContent = `${eur(e.deposit)} €`;
+      $('[data-care]').textContent = e.care ? `+ ${eur(e.care)} € / mo` : 'None';
+      $<HTMLAnchorElement>('[data-send]').href = `/contact?${contactQuery(s, pr, budgets)}`;
+    };
+    form.addEventListener('input', draw);
+
+    // Price point → simulator: design on, showcase type, or a care plan; then scroll to the simulator.
+    document.querySelectorAll<HTMLButtonElement>('[data-point]').forEach((b) => b.addEventListener('click', () => {
+      const i = Number(b.dataset.point);
+      const pick = (sel: string) => { const el = form.querySelector<HTMLInputElement>(sel); if (el) el.checked = true; };
+      if (i === 0) pick('[name="opt"][value="0"]');
+      if (i === 1) pick('[name="type"][value="0"]');
+      if (i === 2) pick('[name="care"][value="1"]');
+      draw();
+      scrollTo(document.getElementById('simulator')!);
+    }));
+
+    const more = $<HTMLButtonElement>('[data-more]');
+    more.addEventListener('click', () => {
+      const open = more.getAttribute('aria-expanded') !== 'true';
+      more.setAttribute('aria-expanded', String(open));
+      more.textContent = open ? 'Hide details' : 'Details';
+      root.querySelector('[data-est]')!.classList.toggle('is-open', open);
+    });
+    draw();
+  }
+</script>
+
+<style lang="scss">
+  .pp {
+    padding: 0;
+    list-style: none;
+
+    > li { gap: var(--space-4); padding: var(--space-6) var(--space-5) var(--space-6); }
+    > li > :global(.cta) { justify-self: start; }
+  }
+
+  .pp__t { @include text(h3); }
+
+  .pp__v {
+    @include text(h2);
+
+    font-variant-numeric: tabular-nums;
+
+    .muted, small {
+      margin-inline: 0 var(--space-1);
+      font-family: var(--font-body);
+      font-size: 0.9rem;
+      letter-spacing: 0;
+    }
+
+    small { margin-inline: var(--space-1) 0; color: var(--muted); }
+  }
+
+  .pp__l {
+    display: grid;
+    gap: var(--space-1);
+    color: var(--muted);
+
+    li::before { content: ''; display: inline-block; width: 5px; height: 5px; margin-right: var(--space-3); vertical-align: 2px; background: var(--text); opacity: 0.5; }
+  }
+
+  .sim {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--cell);
+
+    @include mq(lg) {
+      grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+      align-items: start;
+    }
+  }
+
+  .sim__c {
+    display: grid;
+    gap: calc(var(--cell) * 0.8);
+
+    @include mq(lg) { gap: var(--space-block); }
+  }
+
+  // Pages: value, range (filled to the thumb), ticks with the included pages hatched.
+  .rg {
+    display: grid;
+    gap: var(--space-3);
+
+    input {
+      width: 100%;
+      height: 28px;
+      margin: 0;
+      appearance: none;
+      cursor: pointer;
+      background:
+        linear-gradient(var(--text), var(--text)) 0 50% / var(--p) 1px no-repeat,
+        linear-gradient(var(--border), var(--border)) 0 50% / 100% 1px no-repeat;
+
+      &::-webkit-slider-thumb { width: 14px; height: 14px; appearance: none; background: var(--text); border: 0; border-radius: 0; }
+      &::-moz-range-thumb { width: 14px; height: 14px; background: var(--text); border: 0; border-radius: 0; }
+      &:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+    }
+  }
+
+  .rg__v {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-2) var(--space-4);
+    color: var(--muted);
+
+    b { @include text(h3); color: var(--text); font-variant-numeric: tabular-nums; }
+  }
+
+  .rg__t {
+    position: relative;
+    height: 8px;
+    background: repeating-linear-gradient(90deg, var(--muted) 0 1px, transparent 1px var(--tw));
+    opacity: 0.5;
+
+    i {
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: var(--inc);
+      background: repeating-linear-gradient(45deg, transparent 0 3px, var(--muted) 3px 4px);
+    }
+  }
+
+  .ops { border-top: 1px solid var(--border); }
+
+  // Estimate: sticky beside the controls on lg; a slim bar stuck to the bottom of the screen below lg.
+  .est {
+    position: sticky;
+    bottom: 0;
+    z-index: var(--layer-overlay);
+    display: grid;
+    background: var(--bg);
+    border: 1px solid var(--border);
+
+    @include mq(lg) {
+      top: calc(var(--header-h) + var(--space-6));
+      bottom: auto;
+    }
+
+    > div { display: grid; gap: var(--space-4); padding: var(--space-4) var(--space-5); }
+    > div + div { border-top: 1px solid var(--border); }
+  }
+
+  .est__tot {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+
+    .tag { grid-column: 1 / -1; }
+
+    @include mq(lg) { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  .est__v {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+
+    > span:last-child { @include text(h2); }
+
+    :global(.est__odo) {
+      font-size: clamp(32px, 5vw, 64px);
+      letter-spacing: -0.03em;
+    }
+  }
+
+  .est__more {
+    min-height: 44px;
+    padding-inline: var(--space-3);
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+
+    @include mq(lg) { display: none; }
+  }
+
+  // Collapsed below lg: only the total, Details and the CTA (a slim bar).
+  .est > .est__details {
+    display: none;
+
+    @include mq(lg) { display: grid; }
+  }
+
+  .est:global(.is-open) > .est__details { display: grid; }
+
+  .est > .est__go {
+    padding-block: 0 var(--space-4);
+    border-top: 0;
+
+    @include mq(lg) { padding-block: var(--space-5); border-top: 1px solid var(--border); }
+  }
+
+  .sbar {
+    display: flex;
+    gap: 2px;
+    height: 10px;
+    margin-bottom: var(--space-4);
+
+    i { flex: none; width: max(0px, calc(var(--w, 0%) - 2px)); height: 100%; transition: width 0.7s var(--ease-move); }
+  }
+
+  // Five parts, five tones: text, two mixes, a hatch, the accent (the express surcharge).
+  $tones: (
+    1: var(--text),
+    2: color-mix(in srgb, var(--text) 60%, var(--bg)),
+    3: color-mix(in srgb, var(--text) 35%, var(--bg)),
+    4: repeating-linear-gradient(45deg, var(--muted) 0 1px, transparent 1px 4px),
+    5: var(--accent),
+  );
+
+  @each $n, $bg in $tones {
+    .sbar i:nth-child(#{$n}), .slg li:nth-child(#{$n}) i {
+      background: $bg;
+
+      @if $n == 4 { box-shadow: inset 0 0 0 1px var(--muted); }
+    }
+  }
+
+  .slg {
+    display: grid;
+    gap: var(--space-2);
+
+    li {
+      display: grid;
+      grid-template-columns: 10px minmax(0, 1fr) auto;
+      gap: var(--space-3);
+      align-items: center;
+      transition: color var(--duration-fast) var(--ease-soft);
+
+      &:global(.is-nil) { color: var(--muted); }
+      &:global(.is-nil) i { opacity: 0.35; }
+    }
+
+    i { width: 10px; height: 10px; }
+  }
+
+  .kv {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-3);
+    margin: 0;
+
+    > div { display: grid; gap: var(--space-2); }
+    dd { margin: 0; }
+  }
+</style>

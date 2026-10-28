@@ -1,0 +1,98 @@
+---
+// Letter scrub: characters brighten with scroll. Tick rulers in both margins and a 3-segment rail (md+).
+// Screen readers get the plain sentence; the split copy is aria-hidden.
+import Tag from '@/components/ui/Tag.astro';
+import Seam from '@/components/ui/Seam.astro';
+import type { StatementBlock } from '@/lib/types';
+
+interface Props { block: StatementBlock }
+const { block } = Astro.props;
+const words = block.text.split(' ');
+---
+<section class="section st" id={block.anchor} aria-label={block.label ?? 'Statement'}>
+  <Seam />
+  <div class="wrap st__in">
+    <span class="st__rail" aria-hidden="true" data-rail><i></i><i></i><i></i></span>
+    {block.label && <Tag>{block.label}</Tag>}
+    <p class="st__text" data-scrub>
+      <span class="sr-only">{block.text}</span>
+      <span aria-hidden="true">{words.map((w, i) => <><span class="wd">{[...w].map((c) => <span class="c">{c}</span>)}</span>{i < words.length - 1 ? ' ' : ''}</>)}</span>
+    </p>
+  </div>
+</section>
+
+<script>
+  import { ScrollTrigger, reduceMotion } from '@/scripts/gsap';
+
+  for (const el of document.querySelectorAll<HTMLElement>('[data-scrub]')) {
+    const cs = [...el.querySelectorAll<HTMLElement>('.c')];
+    const segs = [...(el.closest('section')?.querySelectorAll<HTMLElement>('[data-rail] i') ?? [])];
+    const set = (p: number) => {
+      const n = Math.round(p * cs.length);
+      cs.forEach((c, i) => c.classList.toggle('on', i < n));
+      segs.forEach((g, i) => g.classList.toggle('on', p > (i + 0.5) / segs.length));
+    };
+    if (reduceMotion()) set(1);
+    else ScrollTrigger.create({ trigger: el, start: 'top 85%', end: () => `+=${innerHeight * 0.5 + el.offsetHeight * 0.3}`, onUpdate: (s) => set(s.progress), onRefresh: (s) => set(s.progress) });
+  }
+</script>
+
+<style lang="scss">
+  .st__in {
+    position: relative;
+    display: grid;
+    gap: var(--space-block);
+  }
+
+  .st__text {
+    @include text(statement);
+
+    max-width: 30ch;
+  }
+
+  .wd { white-space: nowrap; }
+
+  @include motion {
+    :global(.js) .c { color: color-mix(in srgb, var(--text) 26%, var(--bg)); transition: color 0.2s linear; }
+    :global(.js) .c:global(.on) { color: var(--text); }
+  }
+
+  // Ornaments live in the margin: hidden on mobile, where it is too slim.
+  .st::before, .st::after {
+    content: '';
+    position: absolute;
+    top: calc(var(--space-section) + var(--cell));
+    bottom: var(--cell);
+    width: 12px;
+    background: repeating-linear-gradient(to bottom, color-mix(in srgb, var(--text) 22%, transparent) 0 1px, transparent 1px 16px);
+
+    @include fade-edges(20%);
+
+    display: none;
+
+    @include mq(md) { display: block; }
+  }
+
+  .st::before { left: calc(var(--margin) / 4 - 6px); }
+  .st::after { right: calc(var(--margin) / 4 - 6px); }
+
+  .st__rail {
+    position: absolute;
+    top: 0;
+    left: calc(var(--cell) * -0.6);
+    display: none;
+    gap: var(--space-1);
+
+    @include mq(md) { display: grid; }
+
+    i {
+      display: block;
+      width: 5px;
+      height: 18px;
+      border: 1px solid var(--muted);
+      transition: background-color 0.3s var(--ease-soft), border-color 0.3s;
+
+      &:global(.on) { background: var(--text); border-color: var(--text); }
+    }
+  }
+</style>

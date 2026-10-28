@@ -1,0 +1,317 @@
+---
+// Navbar: mark left, links right. Items with a panel open a hairline grid under the bar (desktop/tablet).
+// Mobile: a Menu button opens a full-height sheet (<dialog>: focus trap, Esc) with panel items nested.
+import Mark from '@/components/ui/Mark.astro';
+import type { Site } from '@/lib/types';
+
+interface Props { site: Site }
+const { site } = Astro.props;
+---
+<header class="nav" data-nav>
+  <div class="nav__bar">
+    <a class="nav__home" href="/" aria-label={`${site.name}, home`}><Mark size={22} /></a>
+    <nav class="nav__links" aria-label="Main">
+      <ul role="list">
+        {site.nav.map((n, i) => (
+          <li>
+            {n.panel?.length
+              ? <button class="nav__link" type="button" aria-expanded="false" aria-controls={`panel-${i}`} data-panel={i}>{n.label} <i class="plus" aria-hidden="true"></i></button>
+              : <a class="nav__link" href={n.href}>{n.label}</a>}
+          </li>
+        ))}
+      </ul>
+    </nav>
+    <button class="nav__menu" type="button" aria-haspopup="dialog" data-menu-open>Menu</button>
+  </div>
+  <div class="nav__drop" data-drop>
+    {site.nav.map((n, i) => n.panel?.length ? (
+      <ul role="list" class="nav__panel" id={`panel-${i}`} data-for={i} hidden>
+        {n.panel.map((c, j) => (
+          <li style={`--d:${j * 0.06}s`}>
+            <a class="cell" href={c.href}><span class="tag">{c.eyebrow}</span><b>{c.title}</b>{c.text && <span class="small muted">{c.text}</span>}</a>
+          </li>
+        ))}
+      </ul>
+    ) : null)}
+  </div>
+  <dialog class="sheet" aria-label="Menu" data-sheet>
+    <div class="sheet__bar">
+      <Mark size={22} />
+      <button class="nav__menu" type="button" data-menu-close>Close</button>
+    </div>
+    <ul role="list" class="sheet__list">
+      {site.nav.map((n) => (
+        <li>
+          <a class="sheet__link" href={n.href} data-menu-link>{n.label}</a>
+          {n.panel?.length ? (
+            <ul role="list" class="sheet__sub">
+              {n.panel.map((c) => <li><a href={c.href} data-menu-link><span class="tag">{c.eyebrow}</span> {c.title}</a></li>)}
+            </ul>
+          ) : null}
+        </li>
+      ))}
+    </ul>
+  </dialog>
+</header>
+
+<script>
+  import { lockScroll } from '@/scripts/scroll';
+
+  const nav = document.querySelector<HTMLElement>('[data-nav]')!;
+  const drop = nav.querySelector<HTMLElement>('[data-drop]')!;
+  const btns = [...nav.querySelectorAll<HTMLButtonElement>('[data-panel]')];
+  let cur: string | null = null;
+  let timer = 0;
+
+  const close = () => {
+    cur = null;
+    drop.classList.remove('is-open');
+    btns.forEach((b) => b.setAttribute('aria-expanded', 'false'));
+  };
+  const open = (id: string) => {
+    clearTimeout(timer);
+    cur = id;
+    drop.querySelectorAll<HTMLElement>('[data-for]').forEach((p) => (p.hidden = p.dataset.for !== id));
+    btns.forEach((b) => b.setAttribute('aria-expanded', String(b.dataset.panel === id)));
+    drop.classList.add('is-open');
+  };
+  const leave = () => { timer = window.setTimeout(close, 250); };
+
+  btns.forEach((b) => {
+    b.addEventListener('mouseenter', () => open(b.dataset.panel!));
+    b.addEventListener('click', () => (cur === b.dataset.panel ? close() : open(b.dataset.panel!)));
+  });
+  nav.querySelectorAll('a.nav__link, .nav__home').forEach((a) => a.addEventListener('mouseenter', close));
+  nav.querySelector('.nav__bar')!.addEventListener('mouseleave', leave);
+  drop.addEventListener('mouseleave', leave);
+  drop.addEventListener('mouseenter', () => clearTimeout(timer));
+  drop.addEventListener('click', (e) => { if ((e.target as Element).closest('a')) close(); });
+  nav.addEventListener('focusout', (e) => { if (!nav.contains(e.relatedTarget as Node)) close(); });
+  addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && cur !== null) {
+      btns.find((b) => b.dataset.panel === cur)?.focus();
+      close();
+    }
+  });
+
+  const sheet = nav.querySelector<HTMLDialogElement>('[data-sheet]')!;
+  nav.querySelector('[data-menu-open]')!.addEventListener('click', () => { sheet.showModal(); lockScroll(true); });
+  nav.querySelector('[data-menu-close]')!.addEventListener('click', () => sheet.close());
+  sheet.querySelectorAll('[data-menu-link]').forEach((a) => a.addEventListener('click', () => sheet.close()));
+  sheet.addEventListener('close', () => lockScroll(false));
+</script>
+
+<style lang="scss">
+  .nav {
+    position: sticky;
+    top: 0;
+    z-index: var(--layer-navbar);
+    background: var(--bg);
+  }
+
+  .nav__bar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    height: var(--header-h);
+    padding-inline: var(--margin);
+    border-bottom: 1px solid var(--border);
+
+    @include mq(md) { padding-inline: var(--cell); }
+  }
+
+  .nav__home {
+    display: grid;
+    place-items: center;
+    min-width: 44px;
+    min-height: 44px;
+    margin-left: -11px;
+    color: var(--text);
+  }
+
+  .nav__links {
+    display: none;
+    margin-left: auto;
+
+    @include mq(md) { display: block; }
+
+    ul {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+
+      @include mq(lg) { gap: 22px; }
+    }
+  }
+
+  .nav__link {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 44px;
+
+    @include text(nav);
+
+    color: var(--nav-rest);
+    text-decoration: none;
+    transition: color var(--duration-fast);
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset: auto 0 11px;
+      height: 1px;
+      background: var(--text);
+      scale: 0 1;
+      transform-origin: left;
+      transition: scale 0.45s var(--ease-soft);
+    }
+
+    &:is(:hover, :focus-visible, [aria-expanded='true']) {
+      color: var(--text);
+
+      &::after { scale: 1; }
+    }
+  }
+
+  .plus {
+    position: relative;
+    width: 7px;
+    height: 7px;
+    transition: rotate 0.45s var(--ease-soft);
+
+    &::before, &::after {
+      content: '';
+      position: absolute;
+      top: 3px;
+      left: 0;
+      width: 7px;
+      height: 1px;
+      background: currentcolor;
+    }
+
+    &::after { rotate: 90deg; }
+    [aria-expanded='true'] > & { rotate: 45deg; }
+  }
+
+  .nav__drop {
+    position: absolute;
+    inset: 100% 0 auto;
+    z-index: var(--layer-dropdown);
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    clip-path: inset(0 0 100% 0);
+    visibility: hidden;
+    transition: clip-path 0.7s var(--ease-move), visibility 0s 0.7s;
+
+    &:global(.is-open) {
+      clip-path: inset(0);
+      visibility: visible;
+      transition: clip-path 0.7s var(--ease-move);
+    }
+  }
+
+  .nav__panel {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    padding-inline: var(--cell);
+
+    &[hidden] { display: none; }
+
+    li + li { border-left: 1px solid var(--border); }
+  }
+
+  .cell {
+    display: grid;
+    gap: 6px;
+    height: 100%;
+    padding: var(--space-card);
+    color: var(--text);
+    text-decoration: none;
+    transition: background-color var(--duration-fast);
+
+    b { @include text(h3); }
+    &:is(:hover, :focus-visible) { background: var(--surface); }
+  }
+
+  @include motion {
+    .cell {
+      opacity: 0;
+      translate: 0 -6px;
+      transition: opacity 0.5s var(--ease-soft) var(--d), translate 0.5s var(--ease-soft) var(--d), background-color var(--duration-fast);
+
+      :global(.is-open) & { opacity: 1; translate: 0; }
+    }
+  }
+
+  .nav__menu {
+    margin-left: auto;
+    min-height: 44px;
+
+    @include text(nav);
+
+    @include mq(md) { display: none; }
+  }
+
+  .sheet {
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    max-height: none;
+    margin: 0;
+    padding: 0 var(--margin) var(--space-block);
+    border: 0;
+    background: var(--bg);
+    color: var(--text);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+
+    &::backdrop { background: var(--bg); }
+
+    @include motion {
+      &[open] { animation: sheet-in 0.6s var(--ease-move); }
+    }
+  }
+
+  @keyframes sheet-in {
+    from { clip-path: inset(0 0 100% 0); }
+    to { clip-path: inset(0); }
+  }
+
+  .sheet__bar {
+    display: flex;
+    align-items: center;
+    height: var(--header-h);
+  }
+
+  .sheet__list > li {
+    border-top: 1px solid var(--border);
+    padding-block: var(--space-stack);
+  }
+
+  .sheet__link {
+    display: block;
+    padding-block: var(--space-2);
+
+    @include text(h3);
+
+    color: var(--text);
+    text-decoration: none;
+  }
+
+  .sheet__sub {
+    display: grid;
+    padding-bottom: var(--space-2);
+
+    a {
+      display: flex;
+      align-items: baseline;
+      gap: var(--space-inline);
+      min-height: 44px;
+      padding-block: var(--space-3);
+      color: var(--muted);
+      text-decoration: none;
+    }
+  }
+</style>

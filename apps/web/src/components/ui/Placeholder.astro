@@ -1,0 +1,24 @@
+---
+// Image slot before the real asset lands: hatched surface with a caption. Replace with <Image> from Sanity.
+interface Props { caption: string; class?: string }
+const { caption, class: cls } = Astro.props;
+---
+<div class:list={['ph', cls]} role="img" aria-label={caption}><span class="tag" aria-hidden="true">{caption}</span></div>
+
+<style lang="scss">
+  .ph {
+    position: relative;
+    display: grid;
+    place-items: center;
+    min-height: 120px;
+    background:
+      repeating-linear-gradient(45deg, transparent 0 7px, color-mix(in srgb, var(--text) 8%, transparent) 7px 8px),
+      var(--surface);
+
+    .tag {
+      padding: var(--space-1) var(--space-2);
+      background: var(--bg);
+      border: 1px solid var(--border);
+    }
+  }
+</style>

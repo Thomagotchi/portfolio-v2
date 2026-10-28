@@ -1,0 +1,55 @@
+---
+// Next project: a full-width row; on hover/focus the surface wipes in and the accent bar slides before the title.
+interface Props { title: string; slug: string; summary: string }
+const { title, slug, summary } = Astro.props;
+---
+<a class="nx wrap" href={`/work/${slug}`}>
+  <span class="tag">Next project</span>
+  <b>{title}</b>
+  <span class="muted">{summary}</span>
+</a>
+
+<style lang="scss">
+  .nx {
+    position: relative;
+    isolation: isolate;
+    display: grid;
+    gap: var(--space-3);
+    padding-block: calc(var(--cell) * 1.2);
+    border-top: 1px solid var(--border);
+
+    &::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      background: var(--surface);
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.7s var(--ease-move);
+    }
+
+    b {
+      display: flex;
+      align-items: center;
+
+      @include text(h1);
+
+      &::before {
+        content: '';
+        flex: none;
+        width: 0;
+        height: 3px;
+        background: var(--accent);
+        transition: width var(--duration-base) var(--ease-move), margin var(--duration-base) var(--ease-move);
+      }
+    }
+
+    &:is(:hover, :focus-visible) {
+      &::before { transform: none; }
+      b::before { width: 28px; margin-right: var(--space-5); }
+    }
+
+    &:focus-visible { outline-offset: -2px; }
+  }
+</style>

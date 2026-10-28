@@ -1,0 +1,57 @@
+---
+// About: header with the portrait, the practice as a letter scrub (the home Statement), timeline,
+// three principles and the CTA row.
+import Base from '@/layouts/Base.astro';
+import Button from '@/components/ui/Button.astro';
+import Cells from '@/components/ui/Cells.astro';
+import PageHeader from '@/components/ui/PageHeader.astro';
+import Section from '@/components/ui/Section.astro';
+import Statement from '@/components/sections/Statement.astro';
+import Portrait from '@/components/about/Portrait.astro';
+import Timeline from '@/components/about/Timeline.astro';
+import { getAbout, getSite } from '@/lib/sanity';
+
+const [site, ab] = await Promise.all([getSite(), getAbout()]);
+const jsonLd = [{
+  '@type': 'ProfilePage', name: `About ${site.name}`, mainEntity: { '@id': `${Astro.site}#person` },
+}, {
+  '@type': 'Person', '@id': `${Astro.site}#person`, description: ab.lede,
+  knowsAbout: [...new Set(ab.timeline.flatMap((e) => e.tags))],
+  knowsLanguage: ['fr', 'en'],
+}];
+---
+<Base title="About" site={site} seo={ab.seo} jsonLd={jsonLd}>
+  <PageHeader label={ab.label} heading={ab.heading} lede={ab.lede}>
+    <Cells items={ab.facts} n={[2, 2, 2]} />
+    <Portrait slot="aside" image={ab.portrait} name={site.name} />
+  </PageHeader>
+
+  <Statement block={{ _type: 'statement', _key: 'about-st', label: ab.statementLabel, text: ab.statement }} />
+
+  <Section label={ab.timelineLabel} heading={ab.timelineHeading} id="timeline">
+    <Timeline entries={ab.timeline} />
+  </Section>
+
+  <Section label={ab.principlesLabel}>
+    <ol role="list" class="cells pr" style={"--n:1;--n-md:3"}>
+      {ab.principles.map((p, i) => <li><span class="mono">{String(i + 1).padStart(2, '0')}</span><h3>{p.title}</h3><p class="muted">{p.text}</p></li>)}
+    </ol>
+    <div class="ctas">{ab.ctas.map((c) => <Button href={c.href} variant={c.variant}>{c.label}</Button>)}</div>
+  </Section>
+</Base>
+
+<style lang="scss">
+  .pr {
+    padding: 0;
+    list-style: none;
+
+    li { padding-block: var(--space-6) var(--space-7); }
+  }
+
+  .ctas {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-4);
+    margin-left: calc(var(--tx) * -1);
+  }
+</style>

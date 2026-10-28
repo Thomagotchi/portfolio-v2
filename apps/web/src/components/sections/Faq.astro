@@ -1,0 +1,22 @@
+---
+import Accordion from '@/components/ui/Accordion.astro';
+import type { FaqBlock } from '@/lib/types';
+
+interface Props { block: FaqBlock }
+const { block } = Astro.props;
+---
+<section class="section" aria-labelledby={`${block._key}-h`}>
+  <div class="wrap faq">
+    <h2 id={`${block._key}-h`} data-reveal>{block.heading}</h2>
+    <Accordion items={block.items} id={block._key} />
+  </div>
+</section>
+
+<style lang="scss">
+  .faq {
+    display: grid;
+    gap: var(--space-block);
+
+    @include mq(md) { grid-template-columns: 1fr 2fr; }
+  }
+</style>

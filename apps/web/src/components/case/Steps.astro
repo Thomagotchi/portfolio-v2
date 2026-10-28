@@ -1,0 +1,23 @@
+---
+// Five-step plan: hairline cells that light up one after the other when the row scrolls in.
+interface Props { steps: { when: string; label: string }[] }
+const { steps } = Astro.props;
+---
+<ol role="list" class="cells steps" style={`--n:1;--n-md:${steps.length}`} data-inview>
+  {steps.map((s, i) => <li style={`--d:${i * 0.12}s`}><span class="mono">{s.when}</span><span>{s.label}</span></li>)}
+</ol>
+
+<style lang="scss">
+  .steps {
+    padding: 0;
+    list-style: none;
+
+    li { @include mq(md) { min-height: calc(var(--cell) * 2); } }
+  }
+
+  // Unlit steps dim to --muted (still AA), never by opacity: contrast is checked while they wait.
+  @include motion {
+    li, .mono { transition: color var(--duration-base) var(--ease-soft) var(--d); }
+    :global(.js) .steps:not(:global(.is-in)) :is(li, .mono) { color: var(--muted); }
+  }
+</style>

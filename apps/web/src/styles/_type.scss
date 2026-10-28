@@ -1,0 +1,19 @@
+@use 'tools' as *; // partials don't get Vite's additionalData
+
+body { @include text(body); }
+h1 { @include text(h1); }
+h2 { @include text(h2); }
+h3 { @include text(h3); }
+
+// Emphasis in a heading is the muted colour, never italic.
+em { font-style: normal; color: var(--muted); }
+
+.lede { @include text(lede); color: var(--muted); max-width: 46ch; }
+.small { @include text(small); }
+.muted { color: var(--muted); }
+
+// Tags: the serif, always in capitals.
+.tag, .tag-lg { text-transform: uppercase; color: var(--muted); }
+.tag { @include text(tag); }
+.tag-lg { @include text(tag-lg); }
+.mono, code, kbd { @include text(mono); font-variant-numeric: tabular-nums; }

@@ -1,0 +1,43 @@
+---
+// Inner-page section: seam on top, content on the margin line + text inset, optional tag and h2.
+import Headline from './Headline.astro';
+import Seam from './Seam.astro';
+import Tag from './Tag.astro';
+import type { Headline as H } from '@/lib/types';
+
+interface Props { label?: string; heading?: H; id?: string; class?: string; seam?: boolean }
+const { label, heading, id, class: cls, seam = true } = Astro.props;
+const hid = heading && id ? `${id}-h` : undefined;
+---
+<section class:list={['psec', cls]} id={id} aria-labelledby={hid} aria-label={!hid ? label : undefined}>
+  {seam && <Seam />}
+  <div class="wrap psec__in">
+    {(label || heading) && (
+      <div class="psec__head">
+        {label && <Tag>{label}</Tag>}
+        {heading && <Headline heading={heading} id={hid} />}
+      </div>
+    )}
+    <slot />
+  </div>
+</section>
+
+<style lang="scss">
+  .psec {
+    position: relative;
+    padding-block: calc(var(--cell) * 2);
+  }
+
+  .psec__in {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-block);
+  }
+
+  .psec__head {
+    display: grid;
+    gap: var(--space-head);
+
+    :global(h2) { max-width: 18ch; }
+  }
+</style>

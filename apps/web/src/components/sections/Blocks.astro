@@ -1,0 +1,20 @@
+---
+// Sanity block _type → section component. Add new sections here (pnpm new:section does it for you).
+import type { Block } from '@/lib/types';
+import Hero from './Hero.astro';
+import Kpi from './Kpi.astro';
+import BuiltWith from './BuiltWith.astro';
+import Statement from './Statement.astro';
+import Stack from './Stack.astro';
+import Offers from './Offers.astro';
+import Work from './Work.astro';
+import Faq from './Faq.astro';
+
+interface Props { blocks: Block[] }
+const map = { hero: Hero, kpi: Kpi, builtWith: BuiltWith, statement: Statement, stack: Stack, offers: Offers, work: Work, faq: Faq } as const;
+---
+{Astro.props.blocks.map((block, i) => {
+  // Each component accepts its own block type; the map can't express that pairing.
+  const C = map[block._type] as (props: { block: Block; first?: boolean }) => unknown;
+  return C ? <C block={block} first={i === 0} /> : null;
+})}

@@ -1,0 +1,192 @@
+---
+// Footer "Readout" (DA footer 3): the address in large type (click copies, decodes into a confirmation),
+// four live readouts in hairline cells, the dot terrain behind the lower half, then the bar.
+import Button from '@/components/ui/Button.astro';
+import Mark from '@/components/ui/Mark.astro';
+import type { Site } from '@/lib/types';
+
+interface Props { site: Site }
+const { site } = Astro.props;
+const c = site.contact;
+---
+<footer class="ft" id="contact" data-footer>
+  <div class="ft__field" data-terrain aria-hidden="true"></div>
+  <div class="wrap ft__in">
+    <p class="tag-lg">{site.footerLabel ?? 'Write to'}</p>
+    <a class="ft__mail" href={`mailto:${c.email}`} data-copy={c.email}>{c.email}</a>
+    <p class="sr-only" aria-live="polite" data-copy-status></p>
+    <dl class="ft__ro">
+      <div><dt class="tag">Local time · {c.place}</dt><dd><time data-clock data-tz={c.tz}>--:--:--</time></dd></div>
+      <div><dt class="tag">Reply</dt><dd>{c.reply}</dd></div>
+      {c.lighthouse && <div><dt class="tag">Lighthouse</dt><dd>{c.lighthouse}</dd></div>}
+      <div><dt class="tag">Status</dt><dd><i class="ft__px" aria-hidden="true"></i>{c.status}</dd></div>
+    </dl>
+  </div>
+  <div class="ft__bar">
+    <Mark size={16} mono />
+    <span>© {new Date().getFullYear()} {site.name}</span>
+    <span class="ft__st"><i class="ft__px" aria-hidden="true"></i>{c.status}</span>
+    {site.socials?.length ? (
+      <ul role="list" class="ft__soc" aria-label="Elsewhere">
+        {site.socials.map((s) => <li><Button href={s.href} variant="link" rel="me noopener">{s.label}</Button></li>)}
+      </ul>
+    ) : null}
+    <Button href="#top" variant="link" class="ft__up">Back to top ↑</Button>
+  </div>
+</footer>
+
+<script>
+  import { mountTerrain } from '@/scripts/three/load';
+  import { decode } from '@/scripts/decode';
+
+  const ft = document.querySelector<HTMLElement>('[data-footer]')!;
+  const host = ft.querySelector<HTMLElement>('[data-terrain]')!;
+  mountTerrain(host, { density: [[80, 60], [120, 72], [180, 96]], pointer: ft, lazy: true });
+
+  const mail = ft.querySelector<HTMLAnchorElement>('[data-copy]')!;
+  const status = ft.querySelector<HTMLElement>('[data-copy-status]')!;
+  mail.addEventListener('click', (e) => {
+    if (!navigator.clipboard) return; // falls back to mailto
+    e.preventDefault();
+    const addr = mail.dataset.copy!;
+    navigator.clipboard.writeText(addr).then(() => {
+      status.textContent = `${addr} copied to the clipboard`;
+      decode(mail, 'Copied to clipboard', 700);
+      setTimeout(() => decode(mail, addr, 700), 1800);
+    }, () => { location.href = mail.href; });
+  });
+</script>
+
+<style lang="scss">
+  .ft {
+    position: relative;
+    isolation: isolate;
+    display: grid;
+    align-content: space-between;
+    min-height: 560px;
+    border-top: 1px solid var(--border);
+    overflow: clip;
+  }
+
+  .ft__field {
+    position: absolute;
+    inset: 40% var(--space-3) 60px;
+    z-index: -1;
+    mask-image: linear-gradient(transparent, black 45%);
+
+    :global(canvas) {
+      display: block;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      transition: opacity var(--duration-fade-in) var(--ease-soft);
+    }
+
+    &:global(.is-ready canvas) { opacity: 0.75; }
+  }
+
+  .ft__in {
+    display: grid;
+    gap: var(--space-head);
+    padding-block: var(--space-section) var(--space-section);
+  }
+
+  .ft__mail {
+    justify-self: start;
+    position: relative;
+    margin-bottom: var(--space-block);
+
+    @include text(h1);
+
+    color: var(--text);
+    text-decoration: none;
+    overflow-wrap: anywhere;
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset: auto 0 -4px;
+      height: 1px;
+      background: currentcolor;
+      scale: 0 1;
+      transform-origin: left;
+      transition: scale 0.5s var(--ease-move);
+    }
+
+    &:is(:hover, :focus-visible)::after { scale: 1; }
+  }
+
+  .ft__ro {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1px;
+    margin-left: calc(var(--tx) * -1);
+    background: var(--border);
+    border: 1px solid var(--border);
+
+    @include mq(lg) { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+    > div {
+      display: grid;
+      align-content: start;
+      gap: var(--space-3);
+      padding: var(--space-card);
+      background: var(--bg);
+    }
+
+    dd {
+      display: flex;
+      align-items: center;
+      gap: var(--space-inline);
+      margin: 0;
+
+      @include text(mono);
+
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+    }
+  }
+
+  .ft__px {
+    flex: none;
+    width: 6px;
+    height: 6px;
+    background: var(--accent);
+
+    @include motion { animation: blink 2.4s steps(1) infinite; }
+  }
+
+  @keyframes blink { 50% { opacity: 0; } }
+
+  .ft__bar {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3) var(--space-5);
+    padding: var(--space-4) var(--margin);
+    border-top: 1px solid var(--border);
+    background: var(--bg);
+
+    @include text(small);
+
+    color: var(--muted);
+
+    :global(.cta) { font-size: inherit; color: var(--muted); }
+    :global(.cta:is(:hover, :focus-visible)) { color: var(--text); }
+  }
+
+  .ft__st {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-inline);
+  }
+
+  .ft__soc {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-4);
+  }
+
+  .ft__bar :global(.ft__up) { margin-left: auto; }
+</style>

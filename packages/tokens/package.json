@@ -1,0 +1,7 @@
+{
+  "name": "tokens",
+  "private": true,
+  "type": "module",
+  "exports": { "./tokens.css": "./dist/tokens.css", "./tokens.json": "./dist/tokens.json" },
+  "scripts": { "build": "node build.mjs", "dev": "node --watch-path=tokens.json build.mjs" }
+}

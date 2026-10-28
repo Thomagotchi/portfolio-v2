@@ -1,0 +1,36 @@
+---
+// Numbered fieldset: legend = mono number + tag; errors in the accent, mono, beside the label.
+interface Props { n: number; legend: string; name?: string; class?: string }
+const { n, legend, name, class: cls } = Astro.props;
+---
+<fieldset class:list={['fs', cls]} data-fs={name}>
+  <legend><span class="mono fs__n">{String(n).padStart(2, '0')}</span><span class="tag">{legend}</span>{name && <span class="fe" data-err={name} id={`${name}-err`}></span>}</legend>
+  <slot />
+</fieldset>
+
+<style lang="scss">
+  .fs {
+    display: grid;
+    gap: var(--space-4);
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  legend {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-3);
+    padding: 0;
+    margin-bottom: var(--space-4);
+  }
+
+  .fs__n { color: var(--muted); }
+
+  .fe {
+    color: var(--accent);
+
+    @include text(mono);
+  }
+</style>

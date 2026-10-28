@@ -1,0 +1,99 @@
+---
+// Window (DA motion "window open"): the mark grows into a 1px frame with the notch, its pixel keeps the corner
+// and turns red; the body (canvas, cover, message) sits 3px inside, cut to the same notch. One clip-path per
+// layer, no layout. Absolutely positioned: the parent sets the box (and --win-inset).
+//   load   CSS keyframes at first paint (above the fold, no JS: the hero).
+//   view   opens when it scrolls in (.is-in from scripts/inview.ts); removing .is-in closes it into the mark.
+//   static already open; the pixel shows only with .is-home (404: the pixel is away until dragged back).
+interface Props { mode?: 'load' | 'view' | 'static'; manual?: boolean; class?: string }
+const { mode = 'view', manual = false, class: cls } = Astro.props;
+---
+<div class:list={['win', `win--${mode}`, cls]} data-inview={mode === 'view' ? (manual ? 'manual' : '') : undefined}>
+  <div class="win__body"><slot /></div>
+  <div class="win__frame" aria-hidden="true"></div>
+  <div class="win__px" aria-hidden="true"></div>
+</div>
+
+<style lang="scss">
+  $open: ring(0%, 0, 100%, 0, 1px, 13px, 0);
+  $shut: ring(50%, -40px, 50%, 40px, 16px, 28px, 40px);
+  $px-open: square(0%, 0, 7px);
+  $px-shut: square(50%, -40px, 16px);
+
+  .win {
+    position: absolute;
+    inset: var(--win-inset, 0);
+    pointer-events: none;
+  }
+
+  .win__frame, .win__px {
+    position: absolute;
+    inset: 0;
+  }
+
+  .win__frame { background: var(--border); clip-path: $open; }
+
+  .win__px {
+    z-index: var(--layer-thread);
+    background: var(--accent);
+    clip-path: $px-open;
+  }
+
+  .win__body {
+    position: absolute;
+    inset: 3px;
+    clip-path: polygon(8px 0, 100% 0, 100% 100%, 0 100%, 0 8px, 8px 8px);
+    pointer-events: auto;
+  }
+
+  // load: plays once at first paint.
+  @include motion {
+    .win--load {
+      .win__frame { animation: win-open var(--duration-hero) var(--ease-move) 0.1s both, win-tone 1.2s var(--ease-soft) 0.5s both; }
+      .win__px { animation: px-open var(--duration-hero) var(--ease-move) 0.1s both, px-tone var(--duration-base) var(--ease-soft) 1s both; }
+    }
+  }
+
+  @keyframes win-open { from { clip-path: $shut; } }
+
+  @keyframes win-tone { from { background: var(--text); } }
+
+  @keyframes px-open { from { clip-path: $px-shut; } }
+
+  @keyframes px-tone { from { background: var(--text); } }
+
+  // view: transitions between the two states, so the same element opens and closes.
+  @include motion {
+    .win--view {
+      .win__frame { transition: clip-path var(--duration-hero) var(--ease-move), background 1.2s var(--ease-soft) 0.4s; }
+      .win__px { transition: clip-path var(--duration-hero) var(--ease-move), background var(--duration-base) var(--ease-soft) 0.9s; }
+      .win__body { transition: opacity 1.2s var(--ease-soft) 1.3s; }
+    }
+
+    :global(.js) .win--view:not(:global(.is-in)) {
+      .win__frame { clip-path: $shut; background: var(--text); transition-delay: 0s; }
+      .win__px { clip-path: $px-shut; background: var(--text); transition-delay: 0s, 0.3s; }
+      .win__body { opacity: 0; transition-duration: 0.3s; transition-delay: 0s; }
+    }
+  }
+
+  // Reduced motion with JS: the closed state still applies (contact's window-close), without the move.
+  @media (prefers-reduced-motion: reduce) {
+    :global(.js) .win--view[data-inview='manual']:not(:global(.is-in)) {
+      .win__frame { clip-path: $shut; background: var(--text); }
+      .win__px { clip-path: $px-shut; background: var(--text); }
+      .win__body { opacity: 0; }
+    }
+  }
+
+  // static: a real 1px border cut at the notch (same look as $open). The box stays transparent, so text
+  // over it is checked against the page ground, not a full-size clipped fill.
+  .win--static .win__frame {
+    background: none;
+    border: 1px solid var(--border);
+    clip-path: polygon(13px 0, 100% 0, 100% 100%, 0 100%, 0 13px, 13px 13px);
+  }
+
+  .win--static .win__px { scale: 0; transform-origin: 0 0; transition: scale var(--duration-base) var(--ease-move); }
+  .win--static:global(.is-home) .win__px { scale: 1; }
+</style>

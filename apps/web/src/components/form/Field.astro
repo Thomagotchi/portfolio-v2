@@ -1,0 +1,75 @@
+---
+// Text field: tag label, mono accent error beside it, 16px+ input (no iOS zoom), a line that draws on focus.
+// textarea: with a live character counter.
+interface Props { name: string; label: string; type?: 'text' | 'email' | 'tel' | 'url'; placeholder?: string; autocomplete?: string; textarea?: boolean; maxlength?: number; required?: boolean; value?: string }
+const { name, label, type = 'text', placeholder, autocomplete, textarea = false, maxlength = 1000, required = false, value } = Astro.props;
+const id = `f-${name}`;
+---
+<div class="fi" data-field={name}>
+  <div class="fi__lb"><label class="tag" for={id}>{label}</label><span class="fe" data-err={name} id={`${id}-err`}></span></div>
+  {textarea
+    ? <textarea id={id} name={name} maxlength={maxlength} placeholder={placeholder} required={required} aria-describedby={`${id}-err ${id}-cc`} rows={5}>{value}</textarea>
+    : <input id={id} name={name} type={type} placeholder={placeholder} autocomplete={autocomplete} required={required} aria-describedby={`${id}-err`} value={value} />}
+  {textarea && <span class="fi__cc mono" id={`${id}-cc`} data-count>0 / {maxlength}</span>}
+</div>
+
+<style lang="scss">
+  .fi {
+    position: relative;
+    display: grid;
+    gap: var(--space-2);
+
+    &::after {
+      content: '';
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      height: 1px;
+      background: var(--text);
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform var(--duration-base) var(--ease-move);
+    }
+
+    &:focus-within::after { transform: none; }
+    &:focus-within .tag { color: var(--text); }
+    &:global(.is-err)::after { background: var(--accent); transform: none; }
+  }
+
+  .fi__lb {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-3);
+  }
+
+  .fe {
+    color: var(--accent);
+
+    @include text(mono);
+  }
+
+  input, textarea {
+    width: 100%;
+    padding: var(--space-2) 0 var(--space-3);
+    font: inherit;
+    font-size: max(16px, 1.05rem);
+    color: var(--text);
+    background: none;
+    border: 0;
+    border-bottom: 1px solid var(--border);
+    border-radius: 0;
+    outline: none;
+
+    &::placeholder { color: color-mix(in srgb, var(--muted) 80%, transparent); }
+  }
+
+  textarea { min-height: 120px; resize: vertical; }
+
+  .fi__cc {
+    position: absolute;
+    right: 0;
+    bottom: calc(var(--space-5) * -1);
+    color: var(--muted);
+  }
+</style>

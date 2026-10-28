@@ -1,0 +1,158 @@
+---
+// Work list: filter tabs, rows collapse with grid-template-rows. The list opens from a centred
+// rectangle as it scrolls in (window reveal, clip-path scrubbed). Rows link (View pill) only with an href.
+import Headline from '@/components/ui/Headline.astro';
+import Tag from '@/components/ui/Tag.astro';
+import Seam from '@/components/ui/Seam.astro';
+import type { WorkBlock } from '@/lib/types';
+
+interface Props { block: WorkBlock }
+const { block } = Astro.props;
+const cats = [...new Set(block.items.map((w) => w.category))];
+---
+<section class="section wk" id={block.anchor} aria-labelledby={`${block._key}-h`}>
+  <Seam />
+  <div class="wrap wk__in" data-window>
+    {block.label && <Tag>{block.label}</Tag>}
+    <Headline heading={block.heading} id={`${block._key}-h`} />
+    <div class="wk__list" data-filter>
+      <div class="wk__tabs" role="group" aria-label="Filter work">
+        {['All', ...cats].map((c, i) => <button type="button" aria-pressed={i === 0 ? 'true' : 'false'} data-c={c}>{c}</button>)}
+      </div>
+      <ul role="list" class="wk__rows">
+        {block.items.map((w) => {
+          const R = w.href ? 'a' : 'div';
+          return (
+            <li class="wk__row" data-c={w.category}>
+              <R class="wk__item" href={w.href}>
+                <div class="wk__txt"><h3 class="wk__t">{w.title}</h3>{w.meta && <span class="small muted">{w.meta}</span>}</div>
+                {w.href && <span class="wk__pill">View <i aria-hidden="true">→</i></span>}
+              </R>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  </div>
+</section>
+
+<script>
+  import { ScrollTrigger, reduceMotion } from '@/scripts/gsap';
+
+  for (const fl of document.querySelectorAll<HTMLElement>('[data-filter]')) {
+    const btns = [...fl.querySelectorAll<HTMLButtonElement>('button[data-c]')];
+    const rows = [...fl.querySelectorAll<HTMLElement>('.wk__row')];
+    btns.forEach((b) => b.addEventListener('click', () => {
+      btns.forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+      rows.forEach((r) => {
+        const off = b.dataset.c !== 'All' && r.dataset.c !== b.dataset.c;
+        r.classList.toggle('is-off', off);
+        r.inert = off;
+      });
+      ScrollTrigger.refresh();
+    }));
+  }
+
+  if (!reduceMotion()) {
+    for (const wk of document.querySelectorAll<HTMLElement>('[data-window]')) {
+      ScrollTrigger.create({
+        trigger: wk, start: 'top bottom', end: () => `+=${innerHeight * 0.6}`,
+        onUpdate: ({ progress: p }) => {
+          const e = 1 - (1 - p) ** 3;
+          wk.style.clipPath = e > 0.999 ? 'none' : `inset(${(1 - e) * 30}% ${(1 - e) * 38}% ${(1 - e) * 30}% ${(1 - e) * 38}%)`;
+        },
+      });
+    }
+  }
+</script>
+
+<style lang="scss">
+  .wk__in {
+    display: grid;
+    gap: var(--space-head);
+  }
+
+  .wk__list {
+    display: grid;
+    gap: var(--space-5);
+    margin-top: var(--space-block);
+  }
+
+  .wk__tabs {
+    display: flex;
+    flex-wrap: wrap;
+    column-gap: var(--space-5);
+
+    button {
+      min-height: 44px;
+
+      @include text(nav);
+
+      color: var(--muted);
+      transition: color 0.3s var(--ease-soft);
+
+      &:is([aria-pressed='true'], :hover) { color: var(--text); }
+    }
+  }
+
+  .wk__rows {
+    display: grid;
+    gap: 6px;
+    margin-left: calc(var(--tx) * -1);
+  }
+
+  .wk__row {
+    display: grid;
+    grid-template-rows: 1fr;
+    transition: grid-template-rows var(--duration-base) var(--ease-move), opacity 0.4s var(--ease-soft), margin var(--duration-base) var(--ease-move);
+
+    &:global(.is-off) { grid-template-rows: 0fr; opacity: 0; margin-top: -6px; }
+  }
+
+  .wk__item {
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    text-decoration: none;
+    transition: background-color var(--duration-fast) var(--ease-soft);
+
+    @include mq(md) { flex-direction: row; align-items: center; justify-content: space-between; gap: var(--space-4); }
+  }
+
+  a.wk__item:is(:hover, :focus-visible) { background: var(--raised); }
+
+  .wk__txt {
+    display: grid;
+    gap: var(--space-1);
+    padding: var(--space-4) var(--space-5);
+  }
+
+  .wk__t { @include text(title); }
+
+  .wk__pill {
+    display: inline-flex;
+    gap: 6px;
+    margin: 0 var(--space-5) var(--space-4);
+    padding: 6px 9px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+
+    @include text(small);
+
+    color: var(--muted);
+    white-space: nowrap;
+    transition: color var(--duration-fast) var(--ease-soft), border-color var(--duration-fast) var(--ease-soft);
+
+    @include mq(md) { margin: 0 var(--space-5) 0 0; }
+
+    i { font-style: normal; transition: translate 0.45s var(--ease-move); }
+
+    a:is(:hover, :focus-visible) & { color: var(--text); border-color: color-mix(in srgb, var(--text) 40%, var(--bg)); }
+    a:is(:hover, :focus-visible) & i { translate: 3px 0; }
+  }
+</style>

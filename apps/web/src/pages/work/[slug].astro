@@ -1,0 +1,99 @@
+---
+// Case study: header + meta cells, cover window, results, chapters with the index, quote, gallery, next.
+import Base from '@/layouts/Base.astro';
+import Cells from '@/components/ui/Cells.astro';
+import PageHeader from '@/components/ui/PageHeader.astro';
+import Placeholder from '@/components/ui/Placeholder.astro';
+import Section from '@/components/ui/Section.astro';
+import Window from '@/components/ui/Window.astro';
+import Chapters from '@/components/case/Chapters.astro';
+import NextProject from '@/components/case/NextProject.astro';
+import { getCases, getSite } from '@/lib/sanity';
+import type { CaseStudy } from '@/lib/types';
+import { cleanPath } from '@/lib/url';
+
+export async function getStaticPaths() {
+  return (await getCases()).map((c) => ({ params: { slug: c.slug }, props: { cs: c } }));
+}
+
+const { cs } = Astro.props as { cs: CaseStudy };
+const site = await getSite();
+const url = new URL(cleanPath(Astro.url.pathname), Astro.site).href;
+const year = cs.meta.find((m) => m.label === 'Year')?.value;
+const jsonLd = [{
+  '@type': 'CreativeWork', '@id': `${url}#work`, name: cs.title, headline: `${cs.heading.lead} ${cs.heading.muted ?? ''} ${cs.heading.tail ?? ''}`.trim(),
+  description: cs.lede, url, creator: { '@id': `${Astro.site}#person` }, ...(year && { dateCreated: year }),
+  keywords: cs.meta.find((m) => m.label === 'Stack')?.value, dateModified: cs._updatedAt,
+}];
+---
+<Base title={cs.title} site={site} seo={cs.seo ?? { description: cs.lede }} jsonLd={jsonLd}>
+  <PageHeader label={cs.label} heading={cs.heading} lede={cs.lede}>
+    <Cells items={cs.meta} n={[2, 3, 5]} class="cs-meta" />
+  </PageHeader>
+
+  <div class="cs-cv">
+    <Window>
+      <Placeholder caption="Cover · 1440 × 720 · placeholder" class="cs-cv__img" />
+    </Window>
+  </div>
+
+  <Section label="Results">
+    <Cells items={cs.results} n={[2, 2, 4]} figure />
+  </Section>
+
+  <Section>
+    <Chapters chapters={cs.chapters}>
+      {cs.quote && (
+        <figure class="cs-qt">
+          <blockquote><p>{cs.quote.text}</p></blockquote>
+          <figcaption class="tag">{cs.quote.cite}</figcaption>
+        </figure>
+      )}
+      <div class="cs-gal">
+        <Placeholder caption="Screen · 1440 · placeholder" />
+        <Placeholder caption="Mobile · 390 · placeholder" />
+      </div>
+    </Chapters>
+  </Section>
+
+  {cs.next && <NextProject {...cs.next} />}
+</Base>
+
+<style lang="scss">
+  // Cover: margin to margin, 2:1 (4:3 on mobile); the window opens as it scrolls in.
+  .cs-cv {
+    position: relative;
+    margin-inline: var(--margin);
+    aspect-ratio: 4 / 3;
+
+    @include mq(md) { aspect-ratio: 2 / 1; }
+
+    :global(.cs-cv__img) { position: absolute; inset: 0; }
+  }
+
+  .cs-qt {
+    display: grid;
+    gap: var(--space-5);
+    margin: 0;
+    padding-block: var(--cell);
+    border-block: 1px solid var(--border);
+
+    blockquote { margin: 0; }
+
+    p {
+      max-width: 30ch;
+
+      @include text(h3);
+    }
+  }
+
+  .cs-gal {
+    display: grid;
+    gap: var(--space-5);
+
+    @include mq(md) { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+
+    > :global(:first-child) { aspect-ratio: 16 / 10; }
+    > :global(:last-child) { aspect-ratio: 9 / 12; }
+  }
+</style>

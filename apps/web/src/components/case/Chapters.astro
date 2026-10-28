@@ -1,0 +1,177 @@
+---
+// Chapters with a sticky index (lg+): the chapter whose top passed 40% of the viewport is current, the rail
+// fills down to its label and the pixel marks it; labels scroll to their chapter. Under lg the index is
+// hidden and a 2px bar under the navbar shows progress through the chapters. The slot (quote, gallery)
+// follows the chapters in the same column.
+import { PortableText } from 'astro-portabletext';
+import Figure from './Figure.astro';
+import Headline from '@/components/ui/Headline.astro';
+import Tag from '@/components/ui/Tag.astro';
+import type { Chapter } from '@/lib/types';
+
+interface Props { chapters: Chapter[] }
+const { chapters } = Astro.props;
+---
+<div class="chs" data-chapters>
+  <nav class="chs__toc" aria-label="Chapters">
+    <div class="chs__rail">
+      <b aria-hidden="true"></b>
+      <ol role="list">
+        {chapters.map((c, i) => <li><a href={`#ch-${i + 1}`} aria-current={i === 0 ? 'true' : undefined}>{c.label}</a></li>)}
+      </ol>
+    </div>
+  </nav>
+  <div class="chs__bar" aria-hidden="true"><i></i></div>
+  <div class="chs__body">
+    {chapters.map((c, i) => (
+      <article class="ch" id={`ch-${i + 1}`} aria-labelledby={`ch-${i + 1}-h`}>
+        <Tag>{c.label}</Tag>
+        <Headline heading={c.heading} id={`ch-${i + 1}-h`} />
+        <div class="ch__body"><PortableText value={c.body} components={{ type: { figure: Figure } }} /></div>
+      </article>
+    ))}
+    <slot />
+  </div>
+</div>
+
+<script>
+  import { ScrollTrigger } from '@/scripts/gsap';
+  import { scrollTo } from '@/scripts/scroll';
+
+  for (const root of document.querySelectorAll<HTMLElement>('[data-chapters]')) {
+    const links = [...root.querySelectorAll<HTMLAnchorElement>('.chs__toc a')];
+    const chs = [...root.querySelectorAll<HTMLElement>('.ch')];
+    const rail = root.querySelector<HTMLElement>('.chs__rail > b')!;
+    const bar = root.querySelector<HTMLElement>('.chs__bar i')!;
+    let cur = -1;
+    const update = (p: number) => {
+      bar.style.transform = `scaleX(${p})`;
+      let c = 0;
+      chs.forEach((ch, i) => { if (ch.getBoundingClientRect().top < innerHeight * 0.4) c = i; });
+      if (c === cur) return;
+      cur = c;
+      links.forEach((a, i) => (i === c ? a.setAttribute('aria-current', 'true') : a.removeAttribute('aria-current')));
+      const a = links[c];
+      rail.style.transform = `scaleY(${(a.offsetTop + a.offsetHeight) / rail.parentElement!.offsetHeight})`;
+    };
+    const last = chs[chs.length - 1];
+    ScrollTrigger.create({
+      trigger: chs[0], endTrigger: last, start: 'top 40%', end: 'bottom 40%',
+      onUpdate: (s) => update(s.progress), onRefresh: (s) => { cur = -1; update(s.progress); },
+    });
+    links.forEach((a, i) => a.addEventListener('click', (e) => { e.preventDefault(); scrollTo(chs[i]); history.replaceState(null, '', a.hash); }));
+  }
+</script>
+
+<style lang="scss">
+  .chs {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-block);
+
+    @include mq(lg) {
+      grid-template-columns: calc(var(--cell) * 3) minmax(0, 1fr);
+      gap: var(--cell);
+    }
+  }
+
+  .chs__toc {
+    display: none;
+
+    @include mq(lg) { display: block; }
+
+    .chs__rail {
+      position: sticky;
+      top: calc(var(--header-h) + var(--space-6));
+      display: grid;
+      gap: var(--space-1);
+      padding-left: var(--space-4);
+      border-left: 1px solid var(--border);
+    }
+
+    ol { display: grid; gap: var(--space-1); }
+
+    b {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: -1px;
+      width: 1px;
+      background: var(--text);
+      transform: scaleY(0);
+      transform-origin: top;
+      transition: transform var(--duration-base) var(--ease-move);
+    }
+
+    a {
+      position: relative;
+      display: block;
+      padding-block: var(--space-2);
+      color: var(--muted);
+      transition: color var(--duration-fast) var(--ease-soft);
+
+      @include text(tag);
+
+      text-transform: uppercase;
+
+      &::before {
+        content: '';
+        position: absolute;
+        top: calc(50% - 3px);
+        left: calc(var(--space-4) * -1 - 4px);
+        width: 7px;
+        height: 7px;
+        background: var(--accent);
+        scale: 0;
+        transition: scale var(--duration-fast) var(--ease-move);
+      }
+
+      &:hover, &[aria-current='true'] { color: var(--text); }
+      &[aria-current='true']::before { scale: 1; }
+    }
+  }
+
+  // Under lg: 2px progress under the navbar, only while the chapters are on screen.
+  .chs__bar {
+    position: sticky;
+    top: var(--header-h);
+    z-index: var(--layer-dropdown);
+    height: 2px;
+    margin-bottom: calc(var(--space-block) * -1 - 2px);
+
+    @include mq(lg) { display: none; }
+
+    i {
+      display: block;
+      height: 100%;
+      background: var(--text);
+      transform: scaleX(0);
+      transform-origin: left;
+    }
+  }
+
+  .chs__body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: calc(var(--cell) * 2);
+    min-width: 0;
+  }
+
+  .ch {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-5);
+    scroll-margin-top: calc(var(--header-h) + var(--space-6));
+
+    :global(h2) { max-width: 18ch; }
+  }
+
+  .ch__body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-block);
+
+    > :global(p) { max-width: 56ch; color: var(--muted); }
+    :global(p a) { color: var(--text); text-decoration: underline; text-underline-offset: 0.2em; }
+  }
+</style>
