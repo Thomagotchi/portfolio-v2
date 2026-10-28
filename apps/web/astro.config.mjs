@@ -1,6 +1,7 @@
 import { defineConfig, envField, fontProviders } from 'astro/config';
 import sitemap from '@astrojs/sitemap';
 import node from '@astrojs/node';
+import vercel from '@astrojs/vercel';
 import deferScripts from './integrations/defer-scripts.mjs';
 import { fileURLToPath } from 'node:url';
 import { SITE } from './src/config.ts';
@@ -19,12 +20,12 @@ const fonts = families.map((f) => ({
   fallbacks: [f.role === 'mono' ? 'monospace' : f.role === 'tag' ? 'serif' : 'sans-serif'],
 }));
 
-// Static pages; only the contact action runs on the server (node standalone until a host is picked:
-// swap the adapter, nothing else changes).
+// Static pages; only the contact action runs on the server. On Vercel (VERCEL=1 at build) the Vercel adapter
+// turns it into a function; everywhere else the node standalone server (local preview, CI gates on dist/client).
 export default defineConfig({
   site: SITE.url,
   output: 'static',
-  adapter: node({ mode: 'standalone' }),
+  adapter: process.env.VERCEL ? vercel() : node({ mode: 'standalone' }),
   // Contact action (src/actions). All optional: without the key the action logs the brief (dry run).
   env: {
     schema: {
