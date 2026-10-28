@@ -33,7 +33,7 @@ const jsonLd = [{
   </Section>
 
   <Section label={ab.principlesLabel}>
-    <ol role="list" class="cells pr" style={"--n:1;--n-md:3"}>
+    <ol role="list" class="cells pr" data-brackets style={"--n:1;--n-md:3"}>
       {ab.principles.map((p, i) => <li><span class="mono">{String(i + 1).padStart(2, '0')}</span><h3>{p.title}</h3><p class="muted">{p.text}</p></li>)}
     </ol>
     <div class="ctas">{ab.ctas.map((c) => <Button href={c.href} variant={c.variant}>{c.label}</Button>)}</div>

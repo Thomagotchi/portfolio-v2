@@ -14,7 +14,7 @@ const [site, nf] = await Promise.all([getSite(), getNotFound()]);
 <Base title="Page not found" site={site} seo={nf.seo ?? { noindex: true }}>
   <section class="nf" data-nf data-found-lead={nf.found.lead} data-found-muted={nf.found.muted ?? ''} data-found-tail={nf.found.tail ?? ''}>
     <Window mode="static" class="nf__win"><canvas class="nf__cv" aria-hidden="true"></canvas></Window>
-    <p class="mono nf__hint" aria-hidden="true">Drag the red pixel to the corner</p>
+    <p class="mono nf__hint" aria-hidden="true"><span class="nf__fine">Drag the red pixel to the corner</span><span class="nf__touch">Tap the red pixel</span></p>
     <div class="wrap nf__c">
       <div class="rise"><p class="mono" data-req>{nf.label} · Not found</p></div>
       <div class="rise"><Headline heading={nf.heading} as="h1" class="nf__h" /></div>
@@ -60,11 +60,20 @@ const [site, nf] = await Promise.all([getSite(), getNotFound()]);
     // itself), so sampling reads a few thousand pixels, not the full-size bitmap.
     const build = (w: number, h: number) => {
       if (!w || !h) return;
-      const narrow = w < 640, step = narrow ? 9 : 12;
+      const step = w < 640 ? 9 : 12;
       const cols = Math.floor(w / step), rows = Math.floor(h / step);
       const o = document.createElement('canvas'), oc = o.getContext('2d', { willReadFrequently: true })!;
       o.width = cols; o.height = rows;
-      const box = narrow ? { x: 0.06, y: 0.06, w: 0.88, h: 0.36 } : { x: 0.42, y: 0.08, w: 0.54, h: 0.62 };
+      // Glyph box: the larger free area, beside the text block or above it (in grid units), so "404" never
+      // crowds the heading at any size.
+      const c = cv.getBoundingClientRect();
+      const kids = [...nf.querySelectorAll<HTMLElement>('.nf__c > :not(.sr-only)')].map((k) => k.getBoundingClientRect());
+      const txt = { top: Math.min(...kids.map((k) => k.top)) - c.top, right: Math.max(...kids.map((k) => k.right)) - c.left };
+      const pad = 0.06;
+      const side = { x: txt.right / w + pad, y: 0.08, w: 1 - txt.right / w - pad * 1.6, h: 0.62 };
+      const top = { x: pad, y: pad * 0.8, w: 1 - pad * 2, h: Math.max(0, txt.top / h - pad * 1.6) };
+      const fit = (b: typeof side) => Math.min(b.h * h * 1.15, (b.w * w) / 2.1); // "404" is ≈ 2.1 em wide
+      const box = fit(side) >= fit(top) ? side : top;
       const bw = box.w * cols, bh = box.h * rows;
       const face = getComputedStyle(h1).fontFamily;
       oc.font = `500 100px ${face}`;
@@ -184,6 +193,12 @@ const [site, nf] = await Promise.all([getSite(), getNotFound()]);
   }
 
   .nf:global(.is-found) .nf__hint { opacity: 0; }
+  .nf__touch { display: none; }
+
+  @media (hover: none) {
+    .nf__fine { display: none; }
+    .nf__touch { display: inline; }
+  }
 
   .nf__c {
     position: relative;
@@ -196,10 +211,7 @@ const [site, nf] = await Promise.all([getSite(), getNotFound()]);
 
     > * { pointer-events: auto; }
 
-    // Mobile: the glyphs take the top 45% of the frame, the text sits under them.
-    padding-top: 45svh;
-
-    @include mq(md) { padding-top: 0; }
+    // The glyphs take whatever room the text leaves (beside it on wide frames, above it on tall ones).
   }
 
   .nf__ctas > div {

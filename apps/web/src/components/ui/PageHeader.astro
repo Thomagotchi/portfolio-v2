@@ -36,7 +36,7 @@ const aside = Astro.slots.has('aside');
   .phd__in--2 {
     @include mq(lg) {
       grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
-      align-items: start;
+      align-items: stretch; // the aside is as tall as the text column
       gap: var(--cell);
     }
   }

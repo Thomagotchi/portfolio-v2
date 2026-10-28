@@ -1,7 +1,7 @@
 ---
 // Square-cell grid band: lines draw in, then tag, heading and the stat cells; figures roll in.
-// The grid runs between the two frame lines, so the thread always rides a line; the stats sit on lines
-// in one row at every width. Baselines sit on the horizontal lines (text-box trim + rows of one cell).
+// The page grid: lines on the frame (the thread rides one) and on the margin, where the title, the text of
+// every section and the stat row start. Stats in one row, whole cells, inside the content column. Baselines sit on the horizontal lines (text-box trim + rows of one cell).
 import Headline from '@/components/ui/Headline.astro';
 import Odometer from '@/components/ui/Odometer.astro';
 import Seam from '@/components/ui/Seam.astro';
@@ -11,7 +11,7 @@ import type { KpiBlock } from '@/lib/types';
 interface Props { block: KpiBlock }
 const { block } = Astro.props;
 ---
-<section class="kpi" data-inview aria-labelledby={`${block._key}-h`}>
+<section class="kpi" data-inview style={`--k:${block.stats.length}`} aria-labelledby={`${block._key}-h`}>
   <Seam />
   <div class="kpi__grid" aria-hidden="true"></div>
   <div class="wrap kpi__in">
@@ -19,7 +19,7 @@ const { block } = Astro.props;
     <Headline heading={block.heading} class="kpi__h" id={`${block._key}-h`} />
   </div>
   <div class="wrap">
-    <ul role="list" class="kpi__cells">
+    <ul role="list" class="kpi__cells" data-brackets>
       {block.stats.map((s) => (
         <li><Odometer value={s.value} /><span class="small muted">{s.label}</span></li>
       ))}
@@ -28,19 +28,21 @@ const { block } = Astro.props;
 </section>
 
 <style lang="scss">
-  // Local grid: n cells between the frame lines (a multiple of the stat count on mobile), first line on the frame.
-  // --kx: the line nearest the page margin, where the stat row starts.
+  // The stat row starts on the margin line, like the title and every section's text; each stat is a whole
+  // number of cells, so the row ends on a line inside the content column.
   .kpi {
-    --n: 9;
-    --span: 3;
-    --cell: calc((100vw - 2 * var(--frame)) / var(--n));
-    --cell-x0: var(--frame);
-    --kx: calc(var(--frame) + round(nearest, var(--margin) - var(--frame), var(--cell)));
+    --kx: var(--margin);
+    --col: round(down, calc((100vw - 2 * var(--margin)) / var(--k, 3)), var(--cell));
 
     position: relative;
     padding-block: calc(var(--cell) * 2);
 
-    @include mq(md) { --n: 22; --span: 6; }
+    // Mobile: 9 cells across the content (3 per stat), lines on both margins. The frame (10px) sits inside
+    // the 20px margin, off the cells: there is no cell size that puts a line on both.
+    @media (width < 768px) {
+      --cell: calc((100vw - 2 * var(--margin)) / 9);
+      --col: calc(var(--cell) * 3);
+    }
   }
 
   .kpi__grid {
@@ -68,15 +70,18 @@ const { block } = Astro.props;
     align-items: end;
   }
 
-  .kpi__in > :global(.kpi__tag), .kpi__h { text-box: trim-both cap alphabetic; }
-  .kpi__h { grid-row: span 2; max-width: 16ch; }
+  // Tag and heading are child components: their classes need :global (no scope attribute on them).
+  .kpi__in > :global(.kpi__tag), .kpi__in > :global(.kpi__h) { text-box: trim-both cap alphabetic; }
+  .kpi__in > :global(.kpi__h) { grid-row: span 2; max-width: 16ch; }
 
   .kpi__cells {
     display: grid;
     grid-auto-flow: column;
     width: max-content;
-    grid-auto-columns: calc(var(--cell) * var(--span));
-    grid-auto-rows: calc(var(--cell) * 3);
+    grid-auto-columns: var(--col);
+
+    // At least ~150px tall (figure + a two-line caption), rounded up to whole cells so rows still end on lines.
+    grid-auto-rows: round(up, max(calc(var(--cell) * 3), 9.5rem), var(--cell));
     margin-top: var(--cell);
     margin-left: calc(var(--kx) - var(--margin) - var(--tx));
     border-top: 1px solid var(--border);
@@ -87,9 +92,9 @@ const { block } = Astro.props;
       align-content: start;
       gap: var(--space-2);
       padding: var(--space-3);
-      overflow: hidden;
+      overflow-wrap: anywhere;
 
-      @include mq(md) { gap: calc(var(--cell) / 2); padding: calc(var(--cell) / 2); }
+      @include mq(md) { gap: min(calc(var(--cell) / 2), var(--space-4)); padding: min(calc(var(--cell) / 2), var(--space-5)); }
 
       background: var(--bg);
       border-right: 1px solid var(--border);
@@ -101,13 +106,13 @@ const { block } = Astro.props;
     .kpi__grid::before { transition: clip-path 1.6s var(--ease-soft) 0.2s; }
     .kpi__grid::after { transition: clip-path 1.3s var(--ease-move) 0.3s; }
 
-    .kpi__h, .kpi__cells { transition: opacity 1s var(--ease-soft) 1.05s, translate var(--duration-slow) var(--ease-move) 1.05s; }
+    .kpi__in > :global(.kpi__h), .kpi__cells { transition: opacity 1s var(--ease-soft) 1.05s, translate var(--duration-slow) var(--ease-move) 1.05s; }
     .kpi__cells { transition-delay: 1.2s; }
 
     :global(.js) .kpi:not(:global(.is-in)) {
       .kpi__grid::before { clip-path: inset(0 0 100% 0); }
       .kpi__grid::after { clip-path: inset(0 100% 0 0); }
-      .kpi__h, .kpi__cells { opacity: 0; translate: 0 12px; }
+      .kpi__in > :global(.kpi__h), .kpi__cells { opacity: 0; translate: 0 12px; }
     }
   }
 </style>

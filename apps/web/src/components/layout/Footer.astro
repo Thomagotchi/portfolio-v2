@@ -13,9 +13,9 @@ const c = site.contact;
   <div class="ft__field" data-terrain aria-hidden="true"></div>
   <div class="wrap ft__in">
     <p class="tag-lg">{site.footerLabel ?? 'Write to'}</p>
-    <a class="ft__mail" href={`mailto:${c.email}`} data-copy={c.email}>{c.email}</a>
+    <a class="ft__mail" href={`mailto:${c.email}`} data-copy={c.email} style={`--chars:${Math.max(c.email.length, 19)}`}>{c.email}</a>
     <p class="sr-only" aria-live="polite" data-copy-status></p>
-    <dl class="ft__ro">
+    <dl class="ft__ro" data-brackets>
       <div><dt class="tag">Local time · {c.place}</dt><dd><time data-clock data-tz={c.tz}>--:--:--</time></dd></div>
       <div><dt class="tag">Reply</dt><dd>{c.reply}</dd></div>
       {c.lighthouse && <div><dt class="tag">Lighthouse</dt><dd>{c.lighthouse}</dd></div>}
@@ -44,6 +44,19 @@ const c = site.contact;
   mountTerrain(host, { density: [[80, 60], [120, 72], [180, 96]], pointer: ft, lazy: true });
 
   const mail = ft.querySelector<HTMLAnchorElement>('[data-copy]')!;
+
+  // One line, exactly: start from the h1 size, measure, scale down to the column. Any address, any width
+  // (the CSS estimate before this runs assumes average glyphs; W and M are wider).
+  const col = mail.parentElement!;
+  const fit = () => {
+    mail.style.fontSize = 'var(--text-h1-size)';
+    const cs = getComputedStyle(col);
+    const avail = col.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    const w = mail.scrollWidth;
+    if (w > avail) mail.style.fontSize = `${Math.floor((parseFloat(getComputedStyle(mail).fontSize) * avail * 100) / w) / 100}px`;
+  };
+  new ResizeObserver(fit).observe(col);
+  document.fonts.ready.then(fit);
   const status = ft.querySelector<HTMLElement>('[data-copy-status]')!;
   mail.addEventListener('click', (e) => {
     if (!navigator.clipboard) return; // falls back to mailto
@@ -86,6 +99,7 @@ const c = site.contact;
   }
 
   .ft__in {
+    container-type: inline-size; // the address sizes itself to this column (cqi)
     display: grid;
     gap: var(--space-head);
     padding-block: var(--space-section) var(--space-section);
@@ -98,9 +112,12 @@ const c = site.contact;
 
     @include text(h1);
 
+    // One line, always: the script fits it exactly; before it runs (or without JS) this estimate from the
+    // address length (--chars; 19 = "Copied to clipboard") and an average glyph width holds most addresses.
+    font-size: min(var(--text-h1-size), calc(100cqi / (var(--chars) * 0.62)));
     color: var(--text);
     text-decoration: none;
-    overflow-wrap: anywhere;
+    white-space: nowrap;
 
     &::after {
       content: '';

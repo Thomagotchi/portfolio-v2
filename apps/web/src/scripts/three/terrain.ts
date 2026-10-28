@@ -85,7 +85,12 @@ export async function terrain(host: HTMLElement, { density, pointer = host }: Te
   // Flush styles so the canvas starts at opacity 0: otherwise the fade (and its delay) is skipped.
   void getComputedStyle(renderer.domElement).opacity;
   host.classList.add('is-ready');
-  if (reduce) return () => { geometry.dispose(); material.dispose(); renderer.dispose(); renderer.domElement.remove(); };
+  if (reduce) {
+    // Reduced motion: one still frame, redrawn when the frame resizes (a cleared canvas would stay blank).
+    const ro = new ResizeObserver(() => { resize(); renderer.render(scene, camera); });
+    ro.observe(host);
+    return () => { ro.disconnect(); geometry.dispose(); material.dispose(); renderer.dispose(); renderer.domElement.remove(); };
+  }
 
   // Pointer → ray onto the ground plane, eased.
   const ray = new Raycaster();

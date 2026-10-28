@@ -7,7 +7,7 @@ import type { Cell } from '@/lib/types';
 interface Props { items: Cell[]; n: [number, number, number]; figure?: boolean; class?: string }
 const { items, n, figure = false, class: cls } = Astro.props;
 ---
-<dl class:list={['cells', { 'cells--fig': figure }, cls]} style={`--n:${n[0]};--n-md:${n[1]};--n-lg:${n[2]}`} data-inview={figure ? '' : undefined}>
+<dl class:list={['cells', { 'cells--fig': figure }, cls]} data-brackets style={`--n:${n[0]};--n-md:${n[1]};--n-lg:${n[2]}`} data-inview={figure ? '' : undefined}>
   {items.map((c) => figure
     ? <div><dt class="small muted">{c.label}</dt><dd><Odometer value={c.value} /></dd></div>
     : <div><dt class="tag">{c.label}</dt><dd>{c.value}</dd></div>)}

@@ -22,10 +22,13 @@
     --header-h: 60px;
   }
 
+  // Desktop: the margin snaps up to a grid line (2 cells up to 1440, where it is exact; past it the DA's
+  // centring margin falls between lines). Frame, text and cell rows then share lines at every width; the
+  // content stays ≤ 1200px. The frame stays one cell in, near the edge.
   @include mq(lg) {
-    --margin: var(--grid-margin-desktop);
+    --margin: round(up, var(--grid-margin-desktop), var(--cell));
     --cell: calc(100vw / var(--grid-cells-desktop));
-    --frame: var(--cell); // = half the margin up to 1440; past it the margin centres 1200px and the frame stays near the edge
+    --frame: var(--cell);
     --header-h: 64px;
   }
 }
@@ -116,6 +119,39 @@ main { flex: 1; position: relative; }
     box-shadow: 1px 0 0 var(--border), 0 1px 0 var(--border), 1px 1px 0 var(--border);
   }
 }
+
+// Cursor brackets (scripts/brackets.ts): created by the script, so styled here. The native cursor hides only
+// over a grid that has them (fine pointers), replaced by the 4px accent dot.
+.has-brk.is-brk { cursor: none; }
+
+.brk, .brk-dot {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: var(--layer-overlay);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-soft);
+
+  &.is-on { opacity: 1; }
+}
+
+.brk {
+  will-change: transform;
+
+  &::before, &::after {
+    content: '';
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border: 0 solid var(--text);
+  }
+
+  &::before { top: 0; left: 0; border-width: 2px 0 0 2px; }
+  &::after { right: 0; bottom: 0; border-width: 0 2px 2px 0; }
+}
+
+.brk-dot { width: 4px; height: 4px; background: var(--accent); }
 
 // Accent square before section tags.
 .sq {

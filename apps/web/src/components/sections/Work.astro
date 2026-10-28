@@ -53,14 +53,16 @@ const cats = [...new Set(block.items.map((w) => w.category))];
     }));
   }
 
+  const reveal = (wk: HTMLElement, p: number) => {
+    const e = 1 - (1 - p) ** 3;
+    wk.style.clipPath = e > 0.999 ? 'none' : `inset(${(1 - e) * 30}% ${(1 - e) * 38}% ${(1 - e) * 30}% ${(1 - e) * 38}%)`;
+  };
   if (!reduceMotion()) {
     for (const wk of document.querySelectorAll<HTMLElement>('[data-window]')) {
       ScrollTrigger.create({
         trigger: wk, start: 'top bottom', end: () => `+=${innerHeight * 0.6}`,
-        onUpdate: ({ progress: p }) => {
-          const e = 1 - (1 - p) ** 3;
-          wk.style.clipPath = e > 0.999 ? 'none' : `inset(${(1 - e) * 30}% ${(1 - e) * 38}% ${(1 - e) * 30}% ${(1 - e) * 38}%)`;
-        },
+        onUpdate: ({ progress }) => reveal(wk, progress),
+        onRefresh: ({ progress }) => reveal(wk, progress), // a resize re-measures: redraw at the new progress
       });
     }
   }

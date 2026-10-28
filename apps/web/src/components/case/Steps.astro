@@ -3,7 +3,7 @@
 interface Props { steps: { when: string; label: string }[] }
 const { steps } = Astro.props;
 ---
-<ol role="list" class="cells steps" style={`--n:1;--n-md:${steps.length}`} data-inview>
+<ol role="list" class="cells steps" data-brackets style={`--n:1;--n-md:${steps.length}`} data-inview>
   {steps.map((s, i) => <li style={`--d:${i * 0.12}s`}><span class="mono">{s.when}</span><span>{s.label}</span></li>)}
 </ol>
 

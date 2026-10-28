@@ -99,6 +99,8 @@ const { site } = Astro.props;
   nav.querySelector('[data-menu-close]')!.addEventListener('click', () => sheet.close());
   sheet.querySelectorAll('[data-menu-link]').forEach((a) => a.addEventListener('click', () => sheet.close()));
   sheet.addEventListener('close', () => lockScroll(false));
+  // Resizing across 768 while a menu is open: the sheet would hide but keep the page locked (scroll stuck).
+  matchMedia('(width >= 768px)').addEventListener('change', () => { if (sheet.open) sheet.close(); close(); });
 </script>
 
 <style lang="scss">

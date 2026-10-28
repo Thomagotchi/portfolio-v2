@@ -35,7 +35,7 @@ const jsonLd = [{
   <PageHeader label={pr.label} heading={pr.heading} lede={pr.lede} />
 
   <Section label="Price points">
-    <ul role="list" class="cells pp" style={"--n:1;--n-md:3"}>
+    <ul role="list" class="cells pp" data-brackets style={"--n:1;--n-md:3"}>
       {pr.points.map((p, i) => (
         <li>
           <span class="tag">{p.label}</span>
