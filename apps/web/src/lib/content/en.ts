@@ -11,9 +11,9 @@ const site: Site = {
   description: 'Freelance web developer in Normandy, France. Webflow and Next.js sites, landing pages and day-rate support for brands and agencies.',
   nav: [
     { label: 'Work', href: '/#work', panel: [
-      { eyebrow: '01 · Webflow', title: 'Audion', text: 'Webflow and three.js', href: '/work/audion' },
-      { eyebrow: '02 · Webflow', title: 'La Première Brique', text: 'Webflow and APIs', href: '/work/la-premiere-brique' },
-      { eyebrow: '03 · Next.js', title: 'Zelder', text: 'Shopify e-commerce', href: 'https://zelder.fr/' },
+      { eyebrow: '01 · Webflow', title: 'Audion', text: 'Webflow / three.js', href: '/work/audion' },
+      { eyebrow: '02 · Webflow', title: 'La Première Brique', text: 'Webflow / GSAP', href: '/work/la-premiere-brique' },
+      { eyebrow: '03 · Next.js', title: 'Zelder', text: 'Next.js / Shopify', href: '/work/zelder' },
       { eyebrow: 'Archive', title: 'All work', text: 'The full list', href: '/#work' },
     ] },
     { label: 'Offers', href: '/#offers', panel: [
@@ -76,9 +76,9 @@ const pages: Page[] = [
       {
         _type: 'work', _key: 'work', label: '05 · Work', anchor: 'work', heading: { lead: 'Recent', muted: 'work' },
         items: [
-          { title: 'Audion', meta: 'Webflow and three.js site · at Bruno · 2026', category: 'Webflow', href: '/work/audion' },
-          { title: 'La Première Brique', meta: 'Webflow site connected through APIs · at Bruno · 2025', category: 'Webflow', href: '/work/la-premiere-brique' },
-          { title: 'Zelder', meta: 'Next.js and Shopify e-commerce · build support · 2025', category: 'Next.js', href: 'https://zelder.fr/' },
+          { title: 'Audion', meta: 'Webflow / three.js · at Bruno · 2026', category: 'Webflow', href: '/work/audion' },
+          { title: 'La Première Brique', meta: 'Webflow / GSAP · at Bruno · 2025', category: 'Webflow', href: '/work/la-premiere-brique' },
+          { title: 'Zelder', meta: 'Next.js / Shopify · build support · 2025', category: 'Next.js', href: '/work/zelder' },
         ],
       },
     ],
@@ -90,7 +90,7 @@ const cases = caseStudies('en', [
     title: 'Audion', slug: 'audion', category: 'Webflow', summary: 'Webflow and three.js site',
     heading: h('Audion,', 'giving sound', 'an identity'),
     lede: "Audion is a digital audio advertising platform: brands use it to run and manage campaigns across podcasts, streaming and digital radio. At Bruno, I built the website for its new identity.",
-    meta: [{ label: 'Client', value: 'Audion' }, { label: 'Year', value: '2025–2026' }, { label: 'Role', value: 'Web development' }, { label: 'Stack', value: 'Webflow, three.js' }, { label: 'Agency', value: 'Bruno' }],
+    meta: [{ label: 'Client', value: 'Audion' }, { label: 'Year', value: '2025–2026' }, { label: 'Role', value: 'Web development' }, { label: 'Stack', value: 'Webflow / three.js' }, { label: 'Agency', value: 'Bruno' }],
     chapters: [
       chapter('01 · Context', h('A market leader', 'nobody noticed'), "Despite leading its market, Audion's identity lacked presence and character. The Bruno team built a strong, distinctive identity rooted in a physical picture of sound."),
       chapter('02 · Build', h('From designs', 'to a live site'), "I built the site in Webflow from Yoann Verzeletti's designs, and used three.js for the 3D elements."),
@@ -107,7 +107,7 @@ const cases = caseStudies('en', [
     title: 'La Première Brique', slug: 'la-premiere-brique', category: 'Webflow', summary: 'Webflow site connected through APIs',
     heading: h('La Première Brique,', 'a brand built', 'brick by brick'),
     lede: "La Première Brique lets anyone invest in real estate from €1. At Bruno, I built the site for its new identity with Alexis Prevost-Maynen, connected to the platform through webhooks.",
-    meta: [{ label: 'Client', value: 'La Première Brique' }, { label: 'Year', value: '2025' }, { label: 'Role', value: 'Web development' }, { label: 'Stack', value: 'Webflow, GSAP, Zapier, Make' }, { label: 'Live', value: 'lapremierebrique.fr' }, { label: 'Agency', value: 'Bruno' }],
+    meta: [{ label: 'Client', value: 'La Première Brique' }, { label: 'Year', value: '2025' }, { label: 'Role', value: 'Web development' }, { label: 'Stack', value: 'Webflow / GSAP / Zapier / Make' }, { label: 'Live', value: 'lapremierebrique.fr' }, { label: 'Agency', value: 'Bruno' }],
     chapters: [
       chapter('01 · Context', h('From community', 'to fintech'), 'Their first identity, community-driven and offbeat, did not match their ambition: to become a credible tech and finance player while staying close and easy to understand. Bruno led the full rebrand: branding, design, website, UX and UI.'),
       chapter('02 · Build', h('A site wired', 'to the platform'), "The site is built in Webflow and animated with GSAP. Forms and data go through webhooks set up in Zapier and Make, which connect it to La Première Brique's back end."),
@@ -119,6 +119,18 @@ const cases = caseStudies('en', [
       wide: { file: 'la-premiere-brique/wide.png', alt: 'Screens from the La Première Brique app' },
       tall: { file: 'la-premiere-brique/tall.png', alt: 'The La Première Brique app on a smartphone' },
     },
+  },
+  {
+    title: 'Zelder', slug: 'zelder', category: 'Next.js', summary: 'Next.js and Shopify e-commerce',
+    heading: h('Zelder,', 'adapted furniture', 'online'),
+    lede: "Zelder makes armchairs, sofas and beds in France for older people and people with reduced mobility. I worked on the front-end build of its online store, made with Next.js and Shopify.",
+    meta: [{ label: 'Client', value: 'Zelder' }, { label: 'Year', value: '2025' }, { label: 'Role', value: 'Front-end build' }, { label: 'Stack', value: 'Next.js / Shopify' }, { label: 'Live', value: 'zelder.fr' }],
+    chapters: [
+      chapter('01 · Context', h('A French maker,', 'a large catalogue'), "Zelder designs its furniture in the Tarn and Corrèze: lift chairs, electric sofas, medical beds, custom fittings. The site shows the whole catalogue and takes orders online, with a 30-day trial, delivery and installation included."),
+      chapter('02 · Build', h('Next.js,', 'plugged into Shopify'), "The front end is built with Next.js; products, cart and checkout run on Shopify. I joined the team to help with the build: [To fill in: the pages, components or features I handled]."),
+      chapter('03 · Team', h('A team', 'project'), '[To fill in: agency or team, and project credits.]'),
+    ],
+    placeholder: true,
   },
 ]);
 

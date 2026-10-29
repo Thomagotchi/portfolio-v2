@@ -1,6 +1,7 @@
 ---
-// Language switch: FR / EN, the current one in text colour. Links go to the same page in the other language
-// (`alt` from Base). Visible codes, full names for screen readers ("EN" is part of "English": label in name).
+// Language switch: a disclosure (button + list of links, not role=menu), same hover/click logic as the
+// navbar panels (scripts/menu.ts). The links stay in the HTML, so crawlers follow them; hreflang lives in
+// <head> and the sitemap anyway. Without JS the two links are shown inline.
 import { LOCALES, langOf, useT, type Lang } from '@/i18n';
 
 interface Props { alt: Record<Lang, string>; class?: string }
@@ -8,40 +9,114 @@ const { alt, class: cls } = Astro.props;
 const lang = langOf(Astro.currentLocale);
 const t = useT(lang);
 ---
-<ul role="list" class:list={['lsw', cls]} aria-label={t.lang.label}>
-  {LOCALES.map((l) => (
-    <li>
-      <a href={alt[l]} hreflang={l} lang={l} aria-current={l === lang ? 'true' : undefined}>
-        <span aria-hidden="true">{l.toUpperCase()}</span><span class="sr-only">{t.lang[l]}</span>
-      </a>
-    </li>
-  ))}
-</ul>
+<div class:list={['lsw', cls]} data-lsw>
+  <button class="lsw__btn" type="button" aria-expanded="false" aria-controls="lsw-list">
+    <span class="sr-only">{t.lang.label} : </span>{lang.toUpperCase()}<i class="nav-plus" aria-hidden="true"></i>
+  </button>
+  <ul role="list" class="lsw__list" id="lsw-list" aria-label={t.lang.label}>
+    {LOCALES.map((l) => (
+      <li>
+        <a href={alt[l]} hreflang={l} lang={l} aria-current={l === lang ? 'true' : undefined}>
+          <span class="lsw__code" aria-hidden="true">{l.toUpperCase()}</span>{t.lang[l]}
+        </a>
+      </li>
+    ))}
+  </ul>
+</div>
+
+<script>
+  import { menu } from '@/scripts/menu';
+
+  for (const root of document.querySelectorAll<HTMLElement>('[data-lsw]')) {
+    const list = root.querySelector<HTMLElement>('.lsw__list')!;
+    menu({
+      triggers: [root.querySelector<HTMLElement>('.lsw__btn')!],
+      zones: [root],
+      show: () => root.classList.add('is-open'),
+      hide: () => root.classList.remove('is-open'),
+    });
+    list.addEventListener('click', (e) => { if ((e.target as Element).closest('[aria-current]')) e.preventDefault(); });
+  }
+</script>
 
 <style lang="scss">
   .lsw {
+    position: relative;
+    align-self: stretch;
+    display: flex;
+  }
+
+  .lsw__btn {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    min-width: 44px;
+    min-height: 44px;
+
+    @include text(mono);
+
+    color: var(--text);
+  }
+
+  .lsw__list {
     display: flex;
     align-items: center;
     padding: 0;
     list-style: none;
 
-    @include text(mono);
-
-    li + li::before {
-      content: '/';
-      color: var(--muted);
-    }
-
     a {
-      display: inline-grid;
-      place-items: center;
-      min-width: 32px;
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
       min-height: 44px;
+      padding-inline: var(--space-2);
+
+      @include text(mono);
+
       color: var(--muted);
       text-decoration: none;
-      transition: color var(--duration-fast);
+      transition: color var(--duration-fast), opacity var(--duration-fast);
 
       &:is(:hover, :focus-visible), &[aria-current] { color: var(--text); }
     }
+  }
+
+  .lsw__code { min-width: 2ch; }
+
+  // With JS (.js is set before the first paint: no shift when the script arrives): a button, the list
+  // drops under the bar from its bottom border, right-aligned.
+  :global(.js) .lsw {
+    .lsw__btn { display: inline-flex; }
+
+    .lsw__list {
+      position: absolute;
+      top: calc(100% + 1px);
+      right: calc(-1 * var(--space-2));
+      z-index: var(--layer-dropdown);
+      display: grid;
+      min-width: 12rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-top: 0;
+      clip-path: inset(0 0 100% 0);
+      visibility: hidden;
+      transition: clip-path 0.5s var(--ease-move), visibility 0s 0.5s;
+
+      li + li { border-top: 1px solid var(--border); }
+
+      a {
+        display: flex;
+        padding: var(--space-3) var(--space-4);
+
+        // Same hover as the navbar panels: the other link steps back, no background.
+        .lsw__list:has(a:is(:hover, :focus-visible)) &:not(:hover, :focus-visible) { opacity: 0.35; }
+      }
+    }
+  }
+
+  .lsw:global(.is-open) .lsw__list {
+    clip-path: inset(0);
+    visibility: visible;
+    transition: clip-path 0.5s var(--ease-move);
   }
 </style>

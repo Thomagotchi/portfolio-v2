@@ -12,9 +12,9 @@ const site: Site = {
   description: 'Développeur web freelance en Normandie. Sites Webflow et Next.js, landing pages et renfort à la journée, pour les marques et les agences.',
   nav: [
     { label: 'Projets', href: '/#work', panel: [
-      { eyebrow: '01 · Webflow', title: 'Audion', text: 'Webflow et three.js', href: '/work/audion' },
-      { eyebrow: '02 · Webflow', title: 'La Première Brique', text: 'Webflow et API', href: '/work/la-premiere-brique' },
-      { eyebrow: '03 · Next.js', title: 'Zelder', text: 'E-commerce Shopify', href: 'https://zelder.fr/' },
+      { eyebrow: '01 · Webflow', title: 'Audion', text: 'Webflow / three.js', href: '/work/audion' },
+      { eyebrow: '02 · Webflow', title: 'La Première Brique', text: 'Webflow / GSAP', href: '/work/la-premiere-brique' },
+      { eyebrow: '03 · Next.js', title: 'Zelder', text: 'Next.js / Shopify', href: '/work/zelder' },
       { eyebrow: 'Archive', title: 'Tous les projets', text: 'La liste complète', href: '/#work' },
     ] },
     { label: 'Offres', href: '/#offers', panel: [
@@ -77,9 +77,9 @@ const pages: Page[] = [
       {
         _type: 'work', _key: 'work', label: '05 · Projets', anchor: 'work', heading: { lead: 'Projets', muted: 'récents' },
         items: [
-          { title: 'Audion', meta: 'Site Webflow et three.js · chez Bruno · 2026', category: 'Webflow', href: '/work/audion' },
-          { title: 'La Première Brique', meta: 'Site Webflow relié par API · chez Bruno · 2025', category: 'Webflow', href: '/work/la-premiere-brique' },
-          { title: 'Zelder', meta: 'E-commerce Next.js et Shopify · renfort intégration · 2025', category: 'Next.js', href: 'https://zelder.fr/' },
+          { title: 'Audion', meta: 'Webflow / three.js · chez Bruno · 2026', category: 'Webflow', href: '/work/audion' },
+          { title: 'La Première Brique', meta: 'Webflow / GSAP · chez Bruno · 2025', category: 'Webflow', href: '/work/la-premiere-brique' },
+          { title: 'Zelder', meta: 'Next.js / Shopify · renfort intégration · 2025', category: 'Next.js', href: '/work/zelder' },
         ],
       },
     ],
@@ -91,7 +91,7 @@ const cases = caseStudies('fr', [
     title: 'Audion', slug: 'audion', category: 'Webflow', summary: 'Site Webflow et three.js',
     heading: h('Audion,', 'donner une identité', 'au son'),
     lede: "Audion est une plateforme de publicité audio digitale : les marques y diffusent et pilotent leurs campagnes sur les podcasts, le streaming et la radio digitale. Chez Bruno, j'ai développé le site de sa nouvelle identité.",
-    meta: [{ label: 'Client', value: 'Audion' }, { label: 'Année', value: '2025–2026' }, { label: 'Rôle', value: 'Développement web' }, { label: 'Stack', value: 'Webflow, three.js' }, { label: 'Agence', value: 'Bruno' }],
+    meta: [{ label: 'Client', value: 'Audion' }, { label: 'Année', value: '2025–2026' }, { label: 'Rôle', value: 'Développement web' }, { label: 'Stack', value: 'Webflow / three.js' }, { label: 'Agence', value: 'Bruno' }],
     chapters: [
       chapter('01 · Contexte', h('Un leader,', 'sans présence'), "Malgré sa position de leader, l'identité d'Audion manquait de présence et de singularité. L'équipe de Bruno a construit une identité forte et distinctive, ancrée dans une représentation physique du son."),
       chapter('02 · Développement', h('Des maquettes', 'au site en ligne'), "J'ai intégré le site dans Webflow à partir des maquettes de Yoann Verzeletti, et utilisé three.js pour les éléments en 3D."),
@@ -108,7 +108,7 @@ const cases = caseStudies('fr', [
     title: 'La Première Brique', slug: 'la-premiere-brique', category: 'Webflow', summary: 'Site Webflow relié par API',
     heading: h('La Première Brique,', 'une marque construite', 'brique par brique'),
     lede: "La Première Brique rend l'investissement immobilier accessible à tous, dès 1 €. Chez Bruno, j'ai développé avec Alexis Prevost-Maynen le site de sa nouvelle identité, relié à la plateforme par webhooks.",
-    meta: [{ label: 'Client', value: 'La Première Brique' }, { label: 'Année', value: '2025' }, { label: 'Rôle', value: 'Développement web' }, { label: 'Stack', value: 'Webflow, GSAP, Zapier, Make' }, { label: 'En ligne', value: 'lapremierebrique.fr' }, { label: 'Agence', value: 'Bruno' }],
+    meta: [{ label: 'Client', value: 'La Première Brique' }, { label: 'Année', value: '2025' }, { label: 'Rôle', value: 'Développement web' }, { label: 'Stack', value: 'Webflow / GSAP / Zapier / Make' }, { label: 'En ligne', value: 'lapremierebrique.fr' }, { label: 'Agence', value: 'Bruno' }],
     chapters: [
       chapter('01 · Contexte', h('Du communautaire', 'à la fintech'), "Leur première identité, très communautaire et décalée, ne reflétait pas leur ambition : devenir un acteur crédible de la tech et de la finance, en restant proche et pédagogique. Bruno a mené la refonte complète : branding, design, site, UX et UI."),
       chapter('02 · Développement', h('Un site', 'relié à la plateforme'), 'Le site est intégré dans Webflow et animé avec GSAP. Les formulaires et les données passent par des webhooks montés avec Zapier et Make, qui font le lien avec le back-end de La Première Brique.'),
@@ -120,6 +120,18 @@ const cases = caseStudies('fr', [
       wide: { file: 'la-premiere-brique/wide.png', alt: "Écrans de l'application La Première Brique" },
       tall: { file: 'la-premiere-brique/tall.png', alt: "L'application La Première Brique sur smartphone" },
     },
+  },
+  {
+    title: 'Zelder', slug: 'zelder', category: 'Next.js', summary: 'E-commerce Next.js et Shopify',
+    heading: h('Zelder,', 'du mobilier adapté', 'en ligne'),
+    lede: "Zelder fabrique en France des fauteuils, des canapés et des lits adaptés aux seniors et aux personnes à mobilité réduite. J'ai participé à l'intégration de son site e-commerce, construit avec Next.js et Shopify.",
+    meta: [{ label: 'Client', value: 'Zelder' }, { label: 'Année', value: '2025' }, { label: 'Rôle', value: 'Intégration front-end' }, { label: 'Stack', value: 'Next.js / Shopify' }, { label: 'En ligne', value: 'zelder.fr' }],
+    chapters: [
+      chapter('01 · Contexte', h('Un fabricant français,', 'un grand catalogue'), "Zelder conçoit son mobilier dans le Tarn et en Corrèze : fauteuils releveurs, canapés électriques, lits médicalisés, aménagements sur mesure. Le site présente tout le catalogue et prend les commandes en ligne, avec 30 jours d'essai, la livraison et l'installation comprises."),
+      chapter('02 · Développement', h('Next.js,', 'branché sur Shopify'), "Le front est développé en Next.js ; les produits, le panier et le paiement passent par Shopify. J'ai rejoint l'équipe en renfort sur l'intégration : [À compléter : les pages, composants ou fonctionnalités dont je me suis chargé]."),
+      chapter('03 · Équipe', h('Un projet', "d'équipe"), '[À compléter : agence ou équipe, et crédits du projet.]'),
+    ],
+    placeholder: true,
   },
 ]);
 

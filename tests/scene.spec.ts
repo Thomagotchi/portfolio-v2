@@ -11,7 +11,7 @@ test('hero scene stays within budget', async () => {
     w.__lt = [];
     new PerformanceObserver((l) => l.getEntries().forEach((e) => w.__lt.push(e.duration))).observe({ type: 'longtask', buffered: true });
   });
-  await page.goto('http://localhost:4321/');
+  await page.goto('/');
 
   const ready = await page.waitForSelector('[data-terrain].is-ready', { timeout: 10_000 }).then(() => true, () => false);
   if (!ready) await browser.close();

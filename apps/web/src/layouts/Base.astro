@@ -10,6 +10,7 @@ import Footer from '@/components/layout/Footer.astro';
 import type { Seo as SeoData, Site } from '@/lib/types';
 import { SITE } from '@/config';
 import { fontAliases } from '@/lib/fonts';
+import head from '@/scripts/head.js?raw';
 import { alternates, canonicalOf, DEFAULT_LANG, langOf, LOCALES, TAG, useT } from '@/i18n';
 
 // `path`: the canonical path of this page (/about, /work/x). Defaults to the served one, mapped back.
@@ -32,7 +33,7 @@ const graph = [
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <script is:inline>document.documentElement.classList.add('js')</script>
+    <script is:inline set:html={head} />
     <Seo title={title} seo={seo} image={new URL('/og-image.png', Astro.site).href} lang={lang} />
     {!seo?.noindex && <>
       {LOCALES.map((l) => <link rel="alternate" hreflang={l} href={new URL(alt[l], Astro.site).href} />)}

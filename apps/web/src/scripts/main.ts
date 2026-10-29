@@ -7,6 +7,8 @@ import { initBrackets } from './brackets';
 import { ScrollTrigger } from './gsap';
 
 initScroll();
+// Entry motion waits for the page transition (scripts/head.js).
+await window.__vt;
 initInview();
 initDecode();
 initThread();

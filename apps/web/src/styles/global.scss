@@ -225,3 +225,46 @@ main { flex: 1; position: relative; }
     &.is-on { transform: none; }
   }
 }
+
+// Small cross on disclosure triggers (navbar panels, language switch): turns into × when open.
+.nav-plus {
+  position: relative;
+  flex: none;
+  width: 7px;
+  height: 7px;
+  transition: rotate 0.45s var(--ease-soft);
+
+  &::before, &::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 0;
+    width: 7px;
+    height: 1px;
+    background: currentcolor;
+  }
+
+  &::after { rotate: 90deg; }
+  [aria-expanded='true'] > & { rotate: 45deg; }
+}
+
+// Page transitions: cross-document View Transitions (MPA, no router, no JS). The header keeps its own
+// snapshot so it stays put; the page under it lifts away and the next one opens from the bottom like a
+// window. Browsers without support (Firefox) navigate as usual. Entry animations wait for the end
+// (scripts/head.js adds .vt while it runs).
+@view-transition { navigation: auto; }
+
+@media (prefers-reduced-motion: reduce) {
+  @view-transition { navigation: none; }
+}
+
+.nav { view-transition-name: nav; }
+
+::view-transition-old(root) { animation: vt-out 0.6s var(--ease-move) both; }
+::view-transition-new(root) { animation: vt-in 0.8s var(--ease-move) both; }
+
+@keyframes vt-out { to { opacity: 0; translate: 0 -48px; } }
+
+@keyframes vt-in { from { clip-path: inset(100% 0 0); } }
+
+.vt *, .vt *::before, .vt *::after { animation-play-state: paused !important; }

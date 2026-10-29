@@ -20,7 +20,7 @@ const to = (href: string) => localize(href, lang);
         {site.nav.map((n, i) => (
           <li>
             {n.panel?.length
-              ? <button class="nav__link" type="button" aria-expanded="false" aria-controls={`panel-${i}`} data-panel={i}>{n.label} <i class="plus" aria-hidden="true"></i></button>
+              ? <button class="nav__link" type="button" aria-expanded="false" aria-controls={`panel-${i}`} data-panel={i}>{n.label} <i class="nav-plus" aria-hidden="true"></i></button>
               : <a class="nav__link" href={to(n.href)}>{n.label}</a>}
           </li>
         ))}
@@ -62,43 +62,21 @@ const to = (href: string) => localize(href, lang);
 
 <script>
   import { lockScroll } from '@/scripts/scroll';
+  import { menu } from '@/scripts/menu';
 
   const nav = document.querySelector<HTMLElement>('[data-nav]')!;
   const drop = nav.querySelector<HTMLElement>('[data-drop]')!;
-  const btns = [...nav.querySelectorAll<HTMLButtonElement>('[data-panel]')];
-  let cur: string | null = null;
-  let timer = 0;
-
-  const close = () => {
-    cur = null;
-    drop.classList.remove('is-open');
-    btns.forEach((b) => b.setAttribute('aria-expanded', 'false'));
-  };
-  const open = (id: string) => {
-    clearTimeout(timer);
-    cur = id;
-    drop.querySelectorAll<HTMLElement>('[data-for]').forEach((p) => (p.hidden = p.dataset.for !== id));
-    btns.forEach((b) => b.setAttribute('aria-expanded', String(b.dataset.panel === id)));
-    drop.classList.add('is-open');
-  };
-  const leave = () => { timer = window.setTimeout(close, 250); };
-
-  btns.forEach((b) => {
-    b.addEventListener('mouseenter', () => open(b.dataset.panel!));
-    b.addEventListener('click', () => (cur === b.dataset.panel ? close() : open(b.dataset.panel!)));
+  const panels = menu({
+    triggers: [...nav.querySelectorAll<HTMLButtonElement>('[data-panel]')],
+    zones: [nav.querySelector<HTMLElement>('.nav__bar')!, drop],
+    show: (t) => {
+      drop.querySelectorAll<HTMLElement>('[data-for]').forEach((p) => (p.hidden = p.dataset.for !== t.dataset.panel));
+      drop.classList.add('is-open');
+    },
+    hide: () => drop.classList.remove('is-open'),
   });
-  nav.querySelectorAll('a.nav__link, .nav__home').forEach((a) => a.addEventListener('mouseenter', close));
-  nav.querySelector('.nav__bar')!.addEventListener('mouseleave', leave);
-  drop.addEventListener('mouseleave', leave);
-  drop.addEventListener('mouseenter', () => clearTimeout(timer));
-  drop.addEventListener('click', (e) => { if ((e.target as Element).closest('a')) close(); });
-  nav.addEventListener('focusout', (e) => { if (!nav.contains(e.relatedTarget as Node)) close(); });
-  addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && cur !== null) {
-      btns.find((b) => b.dataset.panel === cur)?.focus();
-      close();
-    }
-  });
+  nav.querySelectorAll('a.nav__link, .nav__home, [data-lsw]').forEach((a) => a.addEventListener('pointerenter', panels.close));
+  drop.addEventListener('click', (e) => { if ((e.target as Element).closest('a')) panels.close(); });
 
   const sheet = nav.querySelector<HTMLDialogElement>('[data-sheet]')!;
   nav.querySelector('[data-menu-open]')!.addEventListener('click', () => { sheet.showModal(); lockScroll(true); });
@@ -106,7 +84,7 @@ const to = (href: string) => localize(href, lang);
   sheet.querySelectorAll('[data-menu-link]').forEach((a) => a.addEventListener('click', () => sheet.close()));
   sheet.addEventListener('close', () => lockScroll(false));
   // Resizing across 768 while a menu is open: the sheet would hide but keep the page locked (scroll stuck).
-  matchMedia('(width >= 768px)').addEventListener('change', () => { if (sheet.open) sheet.close(); close(); });
+  matchMedia('(width >= 768px)').addEventListener('change', () => { if (sheet.open) sheet.close(); panels.close(); });
 </script>
 
 <style lang="scss">
@@ -137,15 +115,17 @@ const to = (href: string) => localize(href, lang);
     color: var(--text);
   }
 
+  // Links fill the bar's height so their underline lands on its bottom border (grid lines, not text lines).
   .nav__links {
     display: none;
+    align-self: stretch;
     margin-left: auto;
 
     @include mq(md) { display: block; }
 
     ul {
       display: flex;
-      align-items: center;
+      height: 100%;
       gap: 18px;
 
       @include mq(lg) { gap: 22px; }
@@ -157,6 +137,7 @@ const to = (href: string) => localize(href, lang);
     display: inline-flex;
     align-items: center;
     gap: 6px;
+    height: 100%;
     min-height: 44px;
 
     @include text(nav);
@@ -168,7 +149,7 @@ const to = (href: string) => localize(href, lang);
     &::after {
       content: '';
       position: absolute;
-      inset: auto 0 11px;
+      inset: auto 0 -1px;
       height: 1px;
       background: var(--text);
       scale: 0 1;
@@ -181,26 +162,6 @@ const to = (href: string) => localize(href, lang);
 
       &::after { scale: 1; }
     }
-  }
-
-  .plus {
-    position: relative;
-    width: 7px;
-    height: 7px;
-    transition: rotate 0.45s var(--ease-soft);
-
-    &::before, &::after {
-      content: '';
-      position: absolute;
-      top: 3px;
-      left: 0;
-      width: 7px;
-      height: 1px;
-      background: currentcolor;
-    }
-
-    &::after { rotate: 90deg; }
-    [aria-expanded='true'] > & { rotate: 45deg; }
   }
 
   .nav__drop {
@@ -237,17 +198,19 @@ const to = (href: string) => localize(href, lang);
     padding: var(--space-card);
     color: var(--text);
     text-decoration: none;
-    transition: background-color var(--duration-fast);
 
     b { @include text(h3); }
-    &:is(:hover, :focus-visible) { background: var(--surface); }
+
+    // Hover: the other links step back (on the children: the cell's own opacity is the entry fade).
+    > * { transition: opacity var(--duration-fast); }
+    .nav__panel:has(.cell:is(:hover, :focus-visible)) &:not(:hover, :focus-visible) > * { opacity: 0.35; }
   }
 
   @include motion {
     .cell {
       opacity: 0;
       translate: 0 -6px;
-      transition: opacity 0.5s var(--ease-soft) var(--d), translate 0.5s var(--ease-soft) var(--d), background-color var(--duration-fast);
+      transition: opacity 0.5s var(--ease-soft) var(--d), translate 0.5s var(--ease-soft) var(--d);
 
       :global(.is-open) & { opacity: 1; translate: 0; }
     }
