@@ -1,0 +1,65 @@
+---
+// Angle field (DA pattern "Angle field", hero background): short strokes at the mark angle on a grid, swaying
+// slowly; near the pointer they turn toward it, grow and go accent. Canvas 2D (scripts/dots canvasLoop): DPR
+// sized, paused off screen, one frame under reduced motion (redrawn on pointer moves). Entrance and top
+// fade: global `.scene`.
+// pointer: closest ancestor matching this selector feeds the pointer (the whole hero), else the canvas.
+import tokens from 'tokens/tokens.json';
+
+interface Props { pointer?: string }
+const { pointer } = Astro.props;
+---
+<canvas class="scene" data-angle-field={tokens.mark.angle} data-pointer={pointer} aria-hidden="true"></canvas>
+
+<script>
+  import { canvasLoop } from '@/scripts/dots';
+  import { reduceMotion } from '@/scripts/gsap';
+
+  const STEP = 24, REACH = 160;
+  for (const cv of document.querySelectorAll<HTMLCanvasElement>('[data-angle-field]')) {
+    const base = (Number(cv.dataset.angleField) * Math.PI) / 180;
+    const host = (cv.dataset.pointer && cv.closest<HTMLElement>(cv.dataset.pointer)) || cv;
+    const rm = reduceMotion();
+    const ptr = { x: -999, y: -999 };
+    const seg = (ctx: CanvasRenderingContext2D, x: number, y: number, a: number, l: number) => {
+      const dx = Math.cos(a) * l, dy = Math.sin(a) * l;
+      ctx.moveTo(x - dx, y - dy);
+      ctx.lineTo(x + dx, y + dy);
+    };
+    const { redraw } = canvasLoop(cv, ({ ctx, w, h, t, css }) => {
+      ctx.clearRect(0, 0, w, h);
+      ctx.lineWidth = 1.4;
+      // Strokes out of reach share one path (one stroke call); the few near the pointer are drawn one by one.
+      const near: [number, number, number, number, number][] = [];
+      ctx.beginPath();
+      for (let y = STEP / 2; y < h; y += STEP) {
+        for (let x = STEP / 2; x < w; x += STEP) {
+          const dx = ptr.x - x, dy = ptr.y - y;
+          const k = Math.max(0, 1 - Math.hypot(dx, dy) / REACH);
+          const sway = rm ? 0 : Math.sin(t / 900 + x / 90 + y / 140) * 0.12;
+          if (k > 0.05) near.push([x, y, base + k * (Math.atan2(dy, dx) - base) + sway, 4 + k * 5, k]);
+          else seg(ctx, x, y, base + sway, 4);
+        }
+      }
+      ctx.strokeStyle = css('--muted');
+      ctx.globalAlpha = 0.25;
+      ctx.stroke();
+      ctx.strokeStyle = css('--accent');
+      for (const [x, y, a, l, k] of near) {
+        ctx.globalAlpha = 0.25 + k * 0.75;
+        ctx.beginPath();
+        seg(ctx, x, y, a, l);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+    });
+    host.addEventListener('pointermove', (e) => {
+      const r = cv.getBoundingClientRect();
+      ptr.x = e.clientX - r.left;
+      ptr.y = e.clientY - r.top;
+      if (rm) redraw();
+    }, { passive: true });
+    host.addEventListener('pointerleave', () => { ptr.x = ptr.y = -999; if (rm) redraw(); });
+  }
+</script>
+

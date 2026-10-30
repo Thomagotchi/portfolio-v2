@@ -1,183 +1,66 @@
 ---
-// Pinned stack: the panel sticks (CSS sticky, 12vh) for ~22vh of scroll per chapter; scroll progress picks the
-// chapter, the red marker sits on the active label, tabs click to their scroll position.
-import Bracket from '@/components/ui/Bracket.astro';
+// Tools: tag and heading, then one card per tool in a grid of shared hairlines (every card fully framed).
+// Cursor brackets on the grid (scripts/brackets.ts); the cards rise in on enter.
 import Headline from '@/components/ui/Headline.astro';
-import Tag from '@/components/ui/Tag.astro';
 import Seam from '@/components/ui/Seam.astro';
+import Tag from '@/components/ui/Tag.astro';
 import type { StackBlock } from '@/lib/types';
 
 interface Props { block: StackBlock }
 const { block } = Astro.props;
-const id = block._key;
+const id = `${block._key}-h`;
 ---
-<section class="stk" data-stack style={`--n:${block.groups.length}`} aria-labelledby={`${id}-h`}>
+<section class="section stk" aria-labelledby={id}>
   <Seam />
-  <div class="stk__pin">
-    <div class="wrap stk__in">
-      <div class="stk__head">
-        {block.label && <Tag>{block.label}</Tag>}
-        <Headline heading={block.heading} id={`${id}-h`} />
-      </div>
-      <ul role="list" class="stk__tabs">
-        {block.groups.map((g, i) => (
-          <li><button class="tag-lg" type="button" aria-pressed={i === 0 ? 'true' : 'false'} aria-controls={`${id}-p${i}`} data-i={i}>{g.name}</button></li>
-        ))}
-      </ul>
-      <div class="stk__ruler" aria-hidden="true"><b></b></div>
-      <div class="stk__panels">
-        {block.groups.map((g, i) => (
-          <ul role="list" class:list={['stk__panel', { 'is-on is-in': i === 0 }]} id={`${id}-p${i}`} aria-label={g.name} data-inview="manual" inert={i !== 0}>
-            {g.tools.map((t) => <li><Bracket>{t}</Bracket></li>)}
-          </ul>
-        ))}
-      </div>
+  <div class="wrap stk__in">
+    <div class="stk__head">
+      {block.label && <Tag>{block.label}</Tag>}
+      <Headline heading={block.heading} id={id} />
     </div>
+    <ul role="list" class="stk__grid" data-inview data-brackets>
+      {block.tools.map((t, i) => <li style={`--d:${i * 0.06}s`}>{t}</li>)}
+    </ul>
   </div>
 </section>
 
-<script>
-  import { ScrollTrigger } from '@/scripts/gsap';
-  import { scrollTo } from '@/scripts/scroll';
-
-  for (const sk of document.querySelectorAll<HTMLElement>('[data-stack]')) {
-    const btns = [...sk.querySelectorAll<HTMLButtonElement>('[data-i]')];
-    const panels = [...sk.querySelectorAll<HTMLElement>('.stk__panel')];
-    const ruler = sk.querySelector<HTMLElement>('.stk__ruler')!;
-    const marker = ruler.firstElementChild as HTMLElement;
-    const n = btns.length;
-    let cur = -1;
-
-    const show = (i: number) => {
-      if (i === cur) return;
-      cur = i;
-      btns.forEach((b, j) => b.setAttribute('aria-pressed', String(i === j)));
-      panels.forEach((p, j) => {
-        p.classList.toggle('is-on', i === j);
-        p.classList.remove('is-in');
-        p.inert = i !== j;
-      });
-      requestAnimationFrame(() => setTimeout(() => panels[i].classList.add('is-in'), 80));
-      const b = btns[i].getBoundingClientRect();
-      marker.style.transform = `translateY(${Math.round(b.top + b.height / 2 - ruler.getBoundingClientRect().top)}px)`;
-    };
-
-    const st = ScrollTrigger.create({
-      trigger: sk, start: 'top top', end: 'bottom bottom',
-      onUpdate: (s) => show(Math.min(n - 1, Math.floor(s.progress * n))),
-      onRefresh: (s) => { cur = -1; show(Math.min(n - 1, Math.floor(s.progress * n))); },
-    });
-    btns.forEach((b, i) => b.addEventListener('click', () => scrollTo(st.start + ((i + 0.5) / n) * (st.end - st.start))));
-  }
-</script>
-
 <style lang="scss">
-  .stk {
-    position: relative;
-    height: calc(100vh + 22vh * var(--n));
-  }
-
-  .stk__pin {
-    position: sticky;
-    top: 12vh;
-    padding-block: calc(var(--cell) * 2);
-  }
-
   .stk__in {
     display: grid;
-    grid-template-columns: 1fr;
-    row-gap: var(--space-block);
-
-    @include mq(md) {
-      grid-template-columns: minmax(0, 1fr) 56px minmax(0, 1fr);
-      gap: var(--space-block) var(--space-6);
-    }
+    gap: var(--space-block);
   }
 
   .stk__head {
-    grid-column: 1 / -1;
     display: grid;
-    gap: var(--space-block);
-
-    :global(h2) { max-width: 16ch; }
+    gap: var(--space-head);
   }
 
-  .stk__tabs {
+  .stk__grid {
     display: grid;
-    gap: var(--space-1);
-    align-content: start;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-left: calc(var(--tx) * -1);
+    border-top: 1px solid var(--border);
+    border-left: 1px solid var(--border);
 
-    button {
-      display: flex;
-      align-items: center;
-      gap: var(--space-inline);
-      min-height: 44px;
-      color: var(--muted);
-      transition: color 0.4s var(--ease-soft);
+    @include mq(md) { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 
-      &::before {
-        content: '>';
-        color: var(--accent);
-        opacity: 0;
-        translate: -10px 0;
-        clip-path: inset(0 100% 0 0);
-        transition: opacity 0.3s var(--ease-soft), translate var(--duration-base) var(--ease-move), clip-path var(--duration-base) var(--ease-move);
-      }
+    li {
+      display: grid;
+      place-items: center;
+      min-height: 96px;
+      padding: var(--space-4);
+      border-right: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      text-align: center;
 
-      &[aria-pressed='true'] {
-        color: var(--text);
+      @include text(h3);
 
-        &::before { opacity: 1; translate: 0; clip-path: inset(0); }
-      }
+      @include mq(md) { min-height: 128px; }
     }
   }
 
-  .stk__ruler {
-    position: relative;
-    display: none;
-    background: repeating-linear-gradient(to bottom, color-mix(in srgb, var(--text) 22%, transparent) 0 1px, transparent 1px 8px) center / 12px 100% no-repeat;
+  @include motion {
+    .stk__grid li { transition: opacity 1s var(--ease-soft) var(--d), translate 1s var(--ease-soft) var(--d); }
 
-    @include mq(md) { display: block; }
-
-    &::before, &::after {
-      content: '';
-      position: absolute;
-      left: 50%;
-      width: 24px;
-      height: 1px;
-      margin-left: -12px;
-      background: color-mix(in srgb, var(--text) 40%, transparent);
-    }
-
-    &::before { top: 0; }
-    &::after { bottom: 0; }
-
-    b {
-      position: absolute;
-      top: 0;
-      left: 50%;
-      width: 32px;
-      height: 2px;
-      margin: -1px 0 0 -16px;
-      background: var(--accent);
-      transition: transform 0.7s var(--ease-move);
-    }
-  }
-
-  .stk__panels {
-    display: grid;
-    align-content: start;
-  }
-
-  .stk__panel {
-    grid-area: 1 / 1;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--space-5);
-    opacity: 0;
-    translate: 0 10px;
-    transition: opacity 0.5s var(--ease-soft), translate 0.7s var(--ease-move);
-
-    &:global(.is-on) { opacity: 1; translate: 0; }
+    :global(.js) .stk__grid:not(:global(.is-in)) li { opacity: 0; translate: 0 12px; }
   }
 </style>

@@ -14,7 +14,7 @@ export function decode(el: HTMLElement, text = el.dataset.text ?? el.textContent
   const step = (now: number) => {
     const k = Math.min(1, (now - t0) / dur);
     const n = Math.floor(k * text.length);
-    el.textContent = text.slice(0, n) + [...text.slice(n)].map((c) => (c === ' ' || c === '·' ? c : Math.random() < 0.5 ? '0' : '1')).join('');
+    el.textContent = text.slice(0, n) + [...text.slice(n)].map((c) => (/\s|·/.test(c) ? c : Math.random() < 0.5 ? '0' : '1')).join('');
     if (k < 1) requestAnimationFrame(step);
     else { el.textContent = text; Object.assign(el.style, { width: '', height: '', clipPath: '' }); }
   };

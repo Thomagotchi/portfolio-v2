@@ -32,7 +32,6 @@
     "new:section": "node scripts/new-section.mjs",
     "test:3d": "playwright test scene",
     "shot": "node scripts/shot.mjs",
-    "seed": "node scripts/seed.mjs && pnpm --filter studio exec sanity dataset import seed.ndjson production --replace",
     "hero:check": "node scripts/hero-check.mjs"
   },
   "devDependencies": {

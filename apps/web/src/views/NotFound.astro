@@ -1,8 +1,7 @@
 ---
 // 404: one viewport. The frame sits on the frame line with an empty notch; a Canvas 2D dot field fills it
-// and draws 404 in brighter dots sampled from the heading font; dots spring away from the pointer. The red
-// pixel wanders: drag it into the notch (tap it on touch, or press "Put it back") and the frame completes,
-// the heading decodes to the found line. Static under reduced motion (one frame, the pixel lands at once).
+// and draws 404 in brighter dots sampled from the heading font. The red pixel is a mini-game (script below):
+// knock it into the notch and the frame completes, the heading decodes to the found line.
 import Base from '@/layouts/Base.astro';
 import Button from '@/components/ui/Button.astro';
 import Headline from '@/components/ui/Headline.astro';
@@ -10,16 +9,19 @@ import Window from '@/components/ui/Window.astro';
 import { getNotFound, getSite } from '@/lib/sanity';
 import { localize, useT, type Lang } from '@/i18n';
 
-// One static 404 (French, the default locale), served for every unknown URL; the switch leads to /en.
+// One static 404 per language: /404.html (French) and /en/404.html, which Vercel serves for every unknown
+// URL under /en (integrations/locale-404.mjs).
 interface Props { lang: Lang }
 const { lang } = Astro.props;
 const t = useT(lang).notFound;
-const [site, nf] = await Promise.all([getSite(lang), getNotFound(lang)]);
+const [site, nf, fr] = await Promise.all([getSite(lang), getNotFound(lang), getNotFound('fr')]);
+// "404" is placed from the French text block, in every language, so it sits in the same spot (script).
+const ref = JSON.stringify({ req: `${fr.label} · ${useT('fr').notFound.status}`, lead: fr.heading.lead, muted: fr.heading.muted ?? '', tail: fr.heading.tail ?? '', lede: fr.lede });
 ---
 <Base title={t.title} site={site} seo={nf.seo ?? { noindex: true }} path="/">
-  <section class="nf" data-nf data-found-lead={nf.found.lead} data-found-muted={nf.found.muted ?? ''} data-found-tail={nf.found.tail ?? ''}>
+  <section class="nf" data-nf data-ref={ref} data-found-lead={nf.found.lead} data-found-muted={nf.found.muted ?? ''} data-found-tail={nf.found.tail ?? ''}>
     <Window mode="static" class="nf__win"><canvas class="nf__cv" aria-hidden="true"></canvas></Window>
-    <p class="mono nf__hint" aria-hidden="true"><span class="nf__fine">{t.hintFine}</span><span class="nf__touch">{t.hintTouch}</span></p>
+    <p class="mono nf__hint" aria-hidden="true"><span class="nf__fine">{t.hintFine}</span><span class="nf__touch">{t.hintTouch}</span> <span data-hits data-one={t.hitsOne} data-many={t.hitsMany} data-done-one={t.doneOne} data-done-many={t.doneMany}></span></p>
     <div class="wrap nf__c">
       <div class="rise"><p class="mono" data-req>{nf.label} · {t.status}</p></div>
       <div class="rise"><Headline heading={nf.heading} as="h1" class="nf__h" /></div>
@@ -33,7 +35,6 @@ const [site, nf] = await Promise.all([getSite(lang), getNotFound(lang)]);
       <div class="rise">
         <ul role="list" class="nf__l">
           {nf.links.map((l) => <li><a href={localize(l.href, lang)}>{l.label}</a></li>)}
-          <li><button type="button" class="nf__put" data-put>{t.putBack}</button></li>
         </ul>
       </div>
       <p class="sr-only" aria-live="polite" data-said></p>
@@ -46,18 +47,25 @@ const [site, nf] = await Promise.all([getSite(lang), getNotFound(lang)]);
   import { decode } from '@/scripts/decode';
   import { reduceMotion } from '@/scripts/gsap';
 
+  // Mini-game: hit the red pixel into the notch (top-left corner of the frame). The pixel drifts on its own;
+  // a pointer that runs into it (or a tap beside it) knocks it away from the side it came from, it slides,
+  // slows down and bounces off the frame. In the corner it lands: the frame completes and the heading
+  // decodes to the found line. Background: still dots, "404" lit; around the cursor a soft halo, fainter
+  // than the glyphs. Reduced motion: no physics, a tap on the pixel lands it.
   const nf = document.querySelector<HTMLElement>('[data-nf]');
   if (nf) {
     const cv = nf.querySelector<HTMLCanvasElement>('canvas')!;
     const win = nf.querySelector<HTMLElement>('.win')!;
     const h1 = nf.querySelector<HTMLElement>('h1')!;
     const req = nf.querySelector<HTMLElement>('[data-req]')!;
+    const hits = nf.querySelector<HTMLElement>('[data-hits]')!;
     const rm = reduceMotion();
-    type Dot = { x0: number; y0: number; x: number; y: number; vx: number; vy: number; on: boolean };
+    const R = 5, GOAL = 34, HALO = 120; // pixel half-size, corner zone, cursor halo radius (px)
+    type Dot = { x: number; y: number; on: boolean };
     let dots: Dot[] = [];
-    let home = false, held = false;
-    const ptr = { x: -999, y: -999 };
-    const px = { x: 0, y: 0, tx: 0, ty: 0, t: 0, homing: false };
+    let home = false, n = 0, W = 0, H = 0;
+    const ptr = { x: -999, y: -999, vx: 0, vy: 0, t: 0 };
+    const px = { x: 0, y: 0, vx: 0, vy: 0, tx: 0, ty: 0, t: 0, hitAt: -1e9, trail: [] as [number, number][] };
 
     decode(req, `GET ${location.pathname} · 404 Not found`, 700);
 
@@ -65,15 +73,32 @@ const [site, nf] = await Promise.all([getSite(lang), getNotFound(lang)]);
     // itself), so sampling reads a few thousand pixels, not the full-size bitmap.
     const build = (w: number, h: number) => {
       if (!w || !h) return;
+      W = w; H = h;
       const step = w < 640 ? 9 : 12;
       const cols = Math.floor(w / step), rows = Math.floor(h / step);
       const o = document.createElement('canvas'), oc = o.getContext('2d', { willReadFrequently: true })!;
       o.width = cols; o.height = rows;
       // Glyph box: the larger free area, beside the text block or above it (in grid units), so "404" never
-      // crowds the heading at any size.
+      // crowds the heading. Measured on a hidden copy of the block holding the French text, so the glyphs
+      // sit in the same spot in every language (the block is bottom-aligned: its top moves by the height
+      // difference).
       const c = cv.getBoundingClientRect();
-      const kids = [...nf.querySelectorAll<HTMLElement>('.nf__c > :not(.sr-only)')].map((k) => k.getBoundingClientRect());
-      const txt = { top: Math.min(...kids.map((k) => k.top)) - c.top, right: Math.max(...kids.map((k) => k.right)) - c.left };
+      const block = nf.querySelector<HTMLElement>('.nf__c')!;
+      const r = JSON.parse(nf.dataset.ref!) as { req: string; lead: string; muted: string; tail: string; lede: string };
+      const copy = block.cloneNode(true) as HTMLElement;
+      copy.querySelector('[data-req]')!.textContent = r.req;
+      const em = document.createElement('em');
+      em.textContent = r.muted;
+      copy.querySelector('h1')!.replaceChildren(r.lead, ...(r.muted ? [' ', em] : []), r.tail ? ` ${r.tail}` : '');
+      copy.querySelector('.lede')!.textContent = r.lede;
+      const b = block.getBoundingClientRect();
+      Object.assign(copy.style, { position: 'absolute', left: `${block.offsetLeft}px`, top: '0', width: `${b.width}px`, visibility: 'hidden' });
+      copy.querySelectorAll<HTMLElement>('*').forEach((e) => (e.style.animation = 'none'));
+      block.after(copy);
+      const kids = [...copy.querySelectorAll<HTMLElement>(':scope > :not(.sr-only)')].map((k) => k.getBoundingClientRect());
+      const ct = copy.getBoundingClientRect();
+      const txt = { top: b.bottom - ct.height + (Math.min(...kids.map((k) => k.top)) - ct.top) - c.top, right: Math.max(...kids.map((k) => k.right)) - c.left };
+      copy.remove();
       const pad = 0.06;
       const side = { x: txt.right / w + pad, y: 0.08, w: 1 - txt.right / w - pad * 1.6, h: 0.62 };
       const top = { x: pad, y: pad * 0.8, w: 1 - pad * 2, h: Math.max(0, txt.top / h - pad * 1.6) };
@@ -90,17 +115,15 @@ const [site, nf] = await Promise.all([getSite(lang), getNotFound(lang)]);
       const a = oc.getImageData(0, 0, cols, rows).data;
       dots = [];
       for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-          const x = c * step + step / 2, y = r * step + step / 2;
-          dots.push({ x0: x, y0: y, x, y, vx: 0, vy: 0, on: a[(r * cols + c) * 4 + 3] > 128 });
-        }
+        for (let c = 0; c < cols; c++) dots.push({ x: c * step + step / 2, y: r * step + step / 2, on: a[(r * cols + c) * 4 + 3] > 128 });
       }
-      if (!px.x) Object.assign(px, { x: w * 0.3, y: h * 0.3, tx: w * 0.3, ty: h * 0.3 });
+      if (!px.x) Object.assign(px, { x: w * 0.55, y: h * 0.4, tx: w * 0.55, ty: h * 0.4 });
     };
 
     const land = () => {
       if (home) return;
-      home = true; px.homing = false;
+      home = true;
+      Object.assign(px, { x: 0, y: 0, vx: 0, vy: 0, trail: [] });
       nf.classList.add('is-found');
       win.classList.add('is-home');
       const { foundLead: lead, foundMuted: muted, foundTail: tail } = nf.dataset;
@@ -109,64 +132,97 @@ const [site, nf] = await Promise.all([getSite(lang), getNotFound(lang)]);
       h1.replaceChildren(lead ?? '', ...(muted ? [' ', em] : []), tail ? ` ${tail}` : '');
       if (muted) decode(em, muted, 800);
       decode(req, 'GET / · 200 OK', 700);
+      hits.textContent = (n === 1 ? hits.dataset.doneOne! : hits.dataset.doneMany!).replace('{n}', String(n));
       nf.querySelector('[data-said]')!.textContent = `${lead} ${muted} ${tail}`.trim();
     };
 
+    // A hit: away from where the pointer came from, as fast as it moved (bounded); a still tap pushes away
+    // from the touch point.
+    const hit = (fromX: number, fromY: number, vx: number, vy: number) => {
+      const now = performance.now();
+      if (home || now - px.hitAt < 250) return; // one hit per contact
+      px.hitAt = now;
+      if (rm) { n = 1; land(); loop.redraw(); return; }
+      let dx = px.x - fromX, dy = px.y - fromY;
+      const sp = Math.hypot(vx, vy);
+      if (sp > 2) { dx = vx; dy = vy; }
+      const d = Math.hypot(dx, dy) || 1;
+      const speed = Math.min(34, Math.max(12, sp * 0.9));
+      px.vx = (dx / d) * speed; px.vy = (dy / d) * speed;
+      n++;
+      hits.textContent = (n === 1 ? hits.dataset.one! : hits.dataset.many!).replace('{n}', String(n));
+    };
+
+    const step = (t: number) => {
+      if (home) return;
+      const moving = Math.hypot(px.vx, px.vy) > 0.4;
+      if (moving) {
+        px.x += px.vx; px.y += px.vy;
+        px.vx *= 0.975; px.vy *= 0.975;
+        // Bounce off the frame, losing a little speed.
+        if (px.x < R) { px.x = R; px.vx = Math.abs(px.vx) * 0.8; }
+        if (px.x > W - R) { px.x = W - R; px.vx = -Math.abs(px.vx) * 0.8; }
+        if (px.y < R) { px.y = R; px.vy = Math.abs(px.vy) * 0.8; }
+        if (px.y > H - R) { px.y = H - R; px.vy = -Math.abs(px.vy) * 0.8; }
+        px.trail.unshift([px.x, px.y]);
+        px.trail.length = Math.min(px.trail.length, 6);
+        if (px.x < GOAL && px.y < GOAL) land();
+        px.tx = px.x; px.ty = px.y; px.t = t;
+      } else {
+        px.vx = px.vy = 0;
+        px.trail.pop();
+        // At rest it drifts to a new spot now and then, so the game shows itself.
+        if (t - px.t > 2600) { px.t = t; px.tx = W * (0.15 + Math.random() * 0.75); px.ty = H * (0.12 + Math.random() * 0.6); }
+        px.x += (px.tx - px.x) * 0.012; px.y += (px.ty - px.y) * 0.012;
+      }
+      // The pointer runs into it.
+      if (Math.hypot(ptr.x - px.x, ptr.y - px.y) < R + 8 && t - ptr.t < 120) hit(ptr.x, ptr.y, ptr.vx, ptr.vy);
+    };
+
     const loop = canvasLoop(cv, ({ ctx, w, h, t, css }) => {
+      if (!rm) step(t);
       ctx.clearRect(0, 0, w, h);
       const fg = css('--text'), mu = css('--muted'), ac = css('--accent');
+      // Unlit dots in one path; those in the halo one by one (up to 0.6, under the glyphs' 0.95 and twice
+      // their size), then the glyphs.
+      ctx.beginPath();
+      const halo: [number, number, number][] = [];
       for (const d of dots) {
-        if (!rm) {
-          const dx = d.x - ptr.x, dy = d.y - ptr.y, r = Math.hypot(dx, dy);
-          if (r < 90 && r > 0.1) { const f = (1 - r / 90) * 2.2; d.vx += (dx / r) * f; d.vy += (dy / r) * f; }
-          d.vx += (d.x0 - d.x) * 0.05; d.vy += (d.y0 - d.y) * 0.05; d.vx *= 0.82; d.vy *= 0.82; d.x += d.vx; d.y += d.vy;
-        }
+        if (d.on && !home) continue;
+        const k = Math.max(0, 1 - Math.hypot(d.x - ptr.x, d.y - ptr.y) / HALO);
+        if (k > 0) halo.push([d.x, d.y, k]); else ctx.rect(d.x - 0.6, d.y - 0.6, 1.2, 1.2);
       }
-      // Two batched paths (lit, unlit): one fill each instead of thousands of fillRect calls.
-      for (const lit of [false, true]) {
-        const s = lit ? 2.6 : 1.2;
+      ctx.fillStyle = mu;
+      ctx.globalAlpha = 0.28;
+      ctx.fill();
+      for (const [x, y, k] of halo) { ctx.globalAlpha = 0.28 + k * k * 0.32; ctx.fillRect(x - 0.6, y - 0.6, 1.2, 1.2); }
+      if (!home) {
         ctx.beginPath();
-        for (const d of dots) if ((d.on && !home) === lit) ctx.rect(d.x - s / 2, d.y - s / 2, s, s);
-        ctx.fillStyle = lit ? fg : mu;
-        ctx.globalAlpha = lit ? 0.95 : 0.28;
+        for (const d of dots) if (d.on) ctx.rect(d.x - 1.3, d.y - 1.3, 2.6, 2.6);
+        ctx.fillStyle = fg;
+        ctx.globalAlpha = 0.95;
         ctx.fill();
       }
-      ctx.globalAlpha = 1;
-      if (home) return;
-      if (!held) {
-        if (px.homing) {
-          px.x += -px.x * 0.08; px.y += -px.y * 0.08;
-          if (Math.hypot(px.x, px.y) < 2) land();
-        } else {
-          if (!rm && t - px.t > 2600) { px.t = t; px.tx = w * (0.08 + Math.random() * 0.84); px.ty = h * (0.08 + Math.random() * 0.5); }
-          px.x += (px.tx - px.x) * 0.012; px.y += (px.ty - px.y) * 0.012;
-        }
-      }
+      if (home) { ctx.globalAlpha = 1; return; }
       ctx.fillStyle = ac;
-      ctx.fillRect(px.x - 5, px.y - 5, 10, 10);
+      px.trail.forEach(([x, y], i) => { ctx.globalAlpha = 0.35 * (1 - i / px.trail.length); ctx.fillRect(x - R, y - R, R * 2, R * 2); });
+      ctx.globalAlpha = 1;
+      ctx.fillRect(px.x - R, px.y - R, R * 2, R * 2);
     }, build);
 
     const pos = (e: PointerEvent) => { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
-    nf.addEventListener('pointermove', (e) => { [ptr.x, ptr.y] = pos(e); if (held) { px.x = ptr.x; px.y = ptr.y; } });
-    nf.addEventListener('pointerleave', () => { ptr.x = ptr.y = -999; });
+    nf.addEventListener('pointermove', (e) => {
+      if (e.pointerType === 'touch') return;
+      const [x, y] = pos(e);
+      if (ptr.x > -900) { ptr.vx = x - ptr.x; ptr.vy = y - ptr.y; }
+      ptr.x = x; ptr.y = y; ptr.t = performance.now();
+      if (rm) loop.redraw();
+    }, { passive: true });
+    nf.addEventListener('pointerleave', () => { ptr.x = ptr.y = -999; ptr.vx = ptr.vy = 0; });
+    // Touch (and a click on the pixel): a tap close to it knocks it away from the finger.
     nf.addEventListener('pointerdown', (e) => {
       const [x, y] = pos(e);
-      if (home || Math.hypot(x - px.x, y - px.y) > 28) return;
-      if (e.pointerType === 'touch') { px.homing = true; loop.redraw(); return; }
-      held = true;
-      nf.setPointerCapture(e.pointerId);
-      nf.classList.add('is-held');
-    });
-    nf.addEventListener('pointerup', () => {
-      if (!held) return;
-      held = false;
-      nf.classList.remove('is-held');
-      if (Math.hypot(px.x, px.y) < 44) land();
-      else { px.tx = px.x; px.ty = px.y; }
-    });
-    nf.querySelector('[data-put]')!.addEventListener('click', () => {
-      if (rm) { land(); loop.redraw(); return; }
-      px.homing = true;
+      if (Math.hypot(x - px.x, y - px.y) < 36) hit(x, y, 0, 0);
     });
   }
 </script>
@@ -183,7 +239,6 @@ const [site, nf] = await Promise.all([getSite(lang), getNotFound(lang)]);
     min-height: calc(100svh - var(--header-h));
     padding-block: calc(var(--frame) + var(--pad));
 
-    &:global(.is-held) { cursor: grabbing; }
   }
 
   .nf__cv { display: block; width: 100%; height: 100%; }
@@ -197,7 +252,8 @@ const [site, nf] = await Promise.all([getSite(lang), getNotFound(lang)]);
     transition: opacity var(--duration-fast);
   }
 
-  .nf:global(.is-found) .nf__hint { opacity: 0; }
+  // Landed: the instructions go, the hit count stays.
+  .nf:global(.is-found) :is(.nf__fine, .nf__touch) { display: none; }
   .nf__touch { display: none; }
 
   @media (hover: none) {
@@ -235,15 +291,4 @@ const [site, nf] = await Promise.all([getSite(lang), getNotFound(lang)]);
     a { color: var(--muted); }
     a:is(:hover, :focus-visible) { color: var(--text); }
   }
-
-  .nf__put {
-    padding-bottom: 3px;
-    color: var(--muted);
-    text-transform: uppercase;
-    border-bottom: 1px solid var(--border);
-
-    @include text(mono);
-  }
-
-  .nf:global(.is-found) .nf__put { visibility: hidden; }
 </style>

@@ -5,7 +5,6 @@ export default defineType({
   name: 'aboutPage', title: 'About', type: 'document', groups,
   fields: [
     placeholder, label, heading(), lede, cells('facts'),
-    defineField({ name: 'portrait', type: 'image', options: { hotspot: true }, fields: [{ name: 'alt', type: 'string', title: 'Alt text' }], description: 'Empty = the dot warp holds the place.' }),
     defineField({ name: 'statementLabel', type: 'string' }), defineField({ name: 'statement', type: 'text', rows: 3 }),
     defineField({ name: 'statementCite', title: 'Statement author', type: 'string', description: 'Set when the statement is a quotation.' }),
     defineField({ name: 'timelineLabel', type: 'string' }), heading('timelineHeading'),

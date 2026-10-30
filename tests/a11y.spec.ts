@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 
 // Every route in the sitemap (+ 404) gets an axe run, in every DA theme.
 const sitemap = readFileSync('apps/web/dist/client/sitemap-0.xml', 'utf8');
-const routes = [...[...sitemap.matchAll(/<loc>https?:\/\/[^/]+([^<]*)<\/loc>/g)].map((m) => m[1] || '/'), '/404'];
+const routes = [...[...sitemap.matchAll(/<loc>https?:\/\/[^/]+([^<]*)<\/loc>/g)].map((m) => m[1] || '/'), '/404', '/en/404'];
 const { themes } = JSON.parse(readFileSync('packages/tokens/dist/tokens.json', 'utf8')) as { themes: string[] };
 
 for (const route of routes) {

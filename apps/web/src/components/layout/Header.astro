@@ -1,6 +1,7 @@
 ---
 // Navbar: mark left, links right. Items with a panel open a hairline grid under the bar (desktop/tablet).
-// Mobile: a Menu button opens a full-height sheet (<dialog>: focus trap, Esc) with panel items nested.
+// Mobile: the Menu button (a disclosure) opens a sheet under the bar with panel items nested; the bar
+// (mark, language, button) stays on top and usable, the rest of the page goes inert and stops scrolling.
 import Mark from '@/components/ui/Mark.astro';
 import LangSwitch from '@/components/ui/LangSwitch.astro';
 import type { Site } from '@/lib/types';
@@ -27,7 +28,9 @@ const to = (href: string) => localize(href, lang);
       </ul>
     </nav>
     <LangSwitch alt={alt} class="nav__lang" />
-    <button class="nav__menu" type="button" aria-haspopup="dialog" data-menu-open>{t.menu}</button>
+    <button class="nav__menu" type="button" aria-expanded="false" aria-controls="nav-sheet" data-menu data-open={t.menu} data-close={t.close}>
+      <span data-menu-label>{t.menu}</span><span class="nav__menu-ghost" aria-hidden="true">{t.close}</span>
+    </button>
   </div>
   <div class="nav__drop" data-drop>
     {site.nav.map((n, i) => n.panel?.length ? (
@@ -40,14 +43,10 @@ const to = (href: string) => localize(href, lang);
       </ul>
     ) : null)}
   </div>
-  <dialog class="sheet" aria-label={t.menu} data-sheet>
-    <div class="sheet__bar">
-      <Mark size={22} />
-      <button class="nav__menu" type="button" data-menu-close>{t.close}</button>
-    </div>
+  <div class="sheet" id="nav-sheet" data-sheet data-lenis-prevent hidden>
     <ul role="list" class="sheet__list">
-      {site.nav.map((n) => (
-        <li>
+      {site.nav.map((n, i) => (
+        <li style={`--i:${i}`}>
           <a class="sheet__link" href={to(n.href)} data-menu-link>{n.label}</a>
           {n.panel?.length ? (
             <ul role="list" class="sheet__sub">
@@ -57,12 +56,13 @@ const to = (href: string) => localize(href, lang);
         </li>
       ))}
     </ul>
-  </dialog>
+  </div>
 </header>
 
 <script>
   import { lockScroll } from '@/scripts/scroll';
   import { menu } from '@/scripts/menu';
+  import { decode } from '@/scripts/decode';
 
   const nav = document.querySelector<HTMLElement>('[data-nav]')!;
   const drop = nav.querySelector<HTMLElement>('[data-drop]')!;
@@ -78,13 +78,43 @@ const to = (href: string) => localize(href, lang);
   nav.querySelectorAll('a.nav__link, .nav__home, [data-lsw]').forEach((a) => a.addEventListener('pointerenter', panels.close));
   drop.addEventListener('click', (e) => { if ((e.target as Element).closest('a')) panels.close(); });
 
-  const sheet = nav.querySelector<HTMLDialogElement>('[data-sheet]')!;
-  nav.querySelector('[data-menu-open]')!.addEventListener('click', () => { sheet.showModal(); lockScroll(true); });
-  nav.querySelector('[data-menu-close]')!.addEventListener('click', () => sheet.close());
-  sheet.querySelectorAll('[data-menu-link]').forEach((a) => a.addEventListener('click', () => sheet.close()));
-  sheet.addEventListener('close', () => lockScroll(false));
-  // Resizing across 768 while a menu is open: the sheet would hide but keep the page locked (scroll stuck).
-  matchMedia('(width >= 768px)').addEventListener('change', () => { if (sheet.open) sheet.close(); panels.close(); });
+  // The sheet (data-lenis-prevent: Lenis cancels every scroll while stopped, the sheet's own included).
+  // Open: the label decodes Menu → Fermer, the sheet wipes in diagonally from the top-right corner; the
+  // page behind goes inert. Close: the same path backwards, then hidden. Esc closes.
+  const sheet = nav.querySelector<HTMLElement>('[data-sheet]')!;
+  const btn = nav.querySelector<HTMLButtonElement>('[data-menu]')!;
+  const label = btn.querySelector<HTMLElement>('[data-menu-label]')!;
+  const rm = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const behind = () => document.querySelectorAll<HTMLElement>('body > :not(header, script)');
+  const isOpen = () => btn.getAttribute('aria-expanded') === 'true';
+  const set = (open: boolean) => {
+    btn.setAttribute('aria-expanded', String(open));
+    behind().forEach((el) => (el.inert = open));
+    lockScroll(open);
+    decode(label, open ? btn.dataset.close : btn.dataset.open, 450);
+  };
+  const openSheet = () => {
+    sheet.classList.remove('is-closing');
+    sheet.hidden = false;
+    set(true);
+  };
+  const closeSheet = (instant = false) => {
+    if (!isOpen()) return;
+    set(false);
+    if (instant || rm()) { sheet.hidden = true; return; }
+    sheet.classList.add('is-closing');
+    const done = (e: AnimationEvent) => {
+      if (e.target !== sheet) return; // the rows' own exits bubble up first
+      sheet.removeEventListener('animationend', done);
+      if (sheet.classList.contains('is-closing')) { sheet.classList.remove('is-closing'); sheet.hidden = true; }
+    };
+    sheet.addEventListener('animationend', done);
+  };
+  btn.addEventListener('click', () => (isOpen() ? closeSheet() : openSheet()));
+  addEventListener('keydown', (e) => { if (e.key === 'Escape' && isOpen()) { closeSheet(); btn.focus(); } });
+  sheet.querySelectorAll('[data-menu-link]').forEach((a) => a.addEventListener('click', () => closeSheet(true)));
+  // Resizing across 768 while a menu is open: close at once (the sheet would hide but keep the page locked).
+  matchMedia('(width >= 768px)').addEventListener('change', () => { closeSheet(true); panels.close(); });
 </script>
 
 <style lang="scss">
@@ -96,6 +126,7 @@ const to = (href: string) => localize(href, lang);
   }
 
   .nav__bar {
+    position: relative; // the language dropdown hangs from it
     display: flex;
     align-items: center;
     gap: var(--space-2);
@@ -181,14 +212,26 @@ const to = (href: string) => localize(href, lang);
     }
   }
 
+  // Hairlines between items from the gap (1px over the border colour), so a second row gets them too.
+  // Tablet: 2 per row (an odd last item spans the row); desktop: one row of cells, at least 200px.
   .nav__panel {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    padding-inline: var(--cell);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1px;
+    margin-inline: var(--cell);
+    background: var(--border);
+
+    @include mq(lg) { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
 
     &[hidden] { display: none; }
 
-    li + li { border-left: 1px solid var(--border); }
+    li { background: var(--bg); }
+
+    li:last-child:nth-child(odd) {
+      grid-column: 1 / -1;
+
+      @include mq(lg) { grid-column: auto; }
+    }
   }
 
   .cell {
@@ -222,49 +265,86 @@ const to = (href: string) => localize(href, lang);
     @include mq(md) { margin-left: var(--space-5); }
   }
 
+  // Both labels share one grid cell (the hidden one only sets the width): Menu ↔ Fermer never moves the
+  // language switch beside it.
   .nav__menu {
+    display: inline-grid;
+    place-items: center end;
     margin-left: var(--space-4);
     min-height: 44px;
 
     @include text(nav);
 
+    > * { grid-area: 1 / 1; }
+
     @include mq(md) { display: none; }
   }
 
+  .nav__menu-ghost { visibility: hidden; }
+
+  // Under the bar, down to the bottom of the screen; scrolls on its own when the list is taller.
   .sheet {
-    width: 100%;
-    max-width: none;
-    height: 100%;
-    max-height: none;
-    margin: 0;
+    position: fixed;
+    inset: var(--header-h) 0 0;
     padding: 0 var(--margin) var(--space-block);
-    border: 0;
     background: var(--bg);
     color: var(--text);
     overflow-y: auto;
     overscroll-behavior: contain;
 
-    &::backdrop { background: var(--bg); }
+    @include mq(md) { display: none; }
+  }
 
-    @include motion {
-      &[open] { animation: sheet-in 0.6s var(--ease-move); }
+  // Open: a diagonal wipe from the top-right corner (under the Menu button) to the bottom-left; then the
+  // rows' hairlines draw from the left and the links rise. Close: the rows drop away, the wipe runs back
+  // into the corner. The triangle's far points sit at 200% / -100%, so at the end it covers the whole sheet.
+  @include motion {
+    .sheet {
+      animation: sheet-in 0.8s var(--ease-move) both;
+
+      .sheet__list > li {
+        &::before { animation: sheet-line 0.8s var(--ease-move) calc(0.35s + var(--i) * 0.07s) both; }
+
+        > * { animation: sheet-rise 0.7s var(--ease-move) calc(0.4s + var(--i) * 0.07s) both; }
+      }
+
+      &:global(.is-closing) {
+        animation: sheet-out 0.7s var(--ease-move) 0.15s both;
+
+        .sheet__list > li::before, .sheet__list > li > * { animation: sheet-drop 0.25s var(--ease-soft) both; }
+      }
     }
   }
 
   @keyframes sheet-in {
-    from { clip-path: inset(0 0 100% 0); }
-    to { clip-path: inset(0); }
+    from { clip-path: polygon(100% 0, 100% 0, 100% 0); }
+    to { clip-path: polygon(100% 0, 100% 200%, -100% 0); }
   }
 
-  .sheet__bar {
-    display: flex;
-    align-items: center;
-    height: var(--header-h);
+  @keyframes sheet-out {
+    from { clip-path: polygon(100% 0, 100% 200%, -100% 0); }
+    to { clip-path: polygon(100% 0, 100% 0, 100% 0); }
   }
 
+  @keyframes sheet-line { from { scale: 0 1; } }
+
+  @keyframes sheet-rise { from { opacity: 0; translate: 0 28px; } }
+
+  @keyframes sheet-drop { to { opacity: 0; translate: 0 10px; } }
+
+  // The hairline is a pseudo-element so it can draw in from the left.
   .sheet__list > li {
-    border-top: 1px solid var(--border);
+    position: relative;
     padding-block: var(--space-stack);
+
+    &::before {
+      content: '';
+      position: absolute;
+      inset: 0 0 auto;
+      height: 1px;
+      background: var(--border);
+      transform-origin: left;
+    }
   }
 
   .sheet__link {

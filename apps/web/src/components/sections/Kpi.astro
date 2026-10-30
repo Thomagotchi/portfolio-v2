@@ -1,7 +1,7 @@
 ---
 // Square-cell grid band: lines draw in, then tag, heading and the stat cells; figures roll in.
 // The page grid: lines on the frame (the thread rides one) and on the margin, where the title, the text of
-// every section and the stat row start. Stats in one row, whole cells, inside the content column. Baselines sit on the horizontal lines (text-box trim + rows of one cell).
+// every section and the stat row start. Stats in one row of equal columns, margin line to margin line. Baselines sit on the horizontal lines (text-box trim + rows of one cell).
 import Headline from '@/components/ui/Headline.astro';
 import Odometer from '@/components/ui/Odometer.astro';
 import Seam from '@/components/ui/Seam.astro';
@@ -28,21 +28,15 @@ const { block } = Astro.props;
 </section>
 
 <style lang="scss">
-  // The stat row starts on the margin line, like the title and every section's text; each stat is a whole
-  // number of cells, so the row ends on a line inside the content column.
+  // The stat row runs from the margin line, like the title and every section's text, to the right margin.
   .kpi {
     --kx: var(--margin);
-    --col: round(down, calc((100vw - 2 * var(--margin)) / var(--k, 3)), var(--cell));
 
     position: relative;
     padding-block: calc(var(--cell) * 2);
 
-    // Mobile: 9 cells across the content (3 per stat), lines on both margins. The frame (10px) sits inside
-    // the 20px margin, off the cells: there is no cell size that puts a line on both.
-    @media (width < 768px) {
-      --cell: calc((100vw - 2 * var(--margin)) / 9);
-      --col: calc(var(--cell) * 3);
-    }
+    // Mobile: 9 cells across the content, lines on both margins (the frame and thread ride the left one); the stats stack.
+    @media (width < 768px) { --cell: calc((100vw - 2 * var(--margin)) / 9); }
   }
 
   .kpi__grid {
@@ -76,16 +70,20 @@ const { block } = Astro.props;
 
   .kpi__cells {
     display: grid;
-    grid-auto-flow: column;
-    width: max-content;
-    grid-auto-columns: var(--col);
+    grid-template-columns: minmax(0, 1fr);
 
-    // At least ~150px tall (figure + a two-line caption), rounded up to whole cells so rows still end on lines.
-    grid-auto-rows: round(up, max(calc(var(--cell) * 3), 9.5rem), var(--cell));
+    // Stacked on mobile (one-line caption): 3 cells per stat.
+    grid-auto-rows: calc(var(--cell) * 3);
     margin-top: var(--cell);
     margin-left: calc(var(--kx) - var(--margin) - var(--tx));
     border-top: 1px solid var(--border);
     border-left: 1px solid var(--border);
+
+    // One row: at least ~150px tall (figure + a two-line caption), rounded up to whole cells so rows still end on lines.
+    @include mq(md) {
+      grid-template-columns: repeat(var(--k, 3), minmax(0, 1fr));
+      grid-auto-rows: round(up, max(calc(var(--cell) * 3), 9.5rem), var(--cell));
+    }
 
     li {
       display: grid;

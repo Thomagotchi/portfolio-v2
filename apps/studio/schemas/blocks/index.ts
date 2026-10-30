@@ -27,12 +27,6 @@ const kpi = defineType({
   preview: sub('KPI'),
 });
 
-const builtWith = defineType({
-  name: 'builtWith', title: 'Built with', type: 'object',
-  fields: [{ ...label, validation: (r) => r.required() }, { ...strings('items'), validation: (r) => r.max(4) }],
-  preview: sub('Built with'),
-});
-
 const statement = defineType({
   name: 'statement', type: 'object',
   fields: [
@@ -43,14 +37,9 @@ const statement = defineType({
 });
 
 const stack = defineType({
-  name: 'stack', type: 'object',
-  fields: [label, heading, defineField({
-    name: 'groups', type: 'array',
-    of: [defineArrayMember({ type: 'object', name: 'group', fields: [
-      defineField({ name: 'name', type: 'string', validation: (r) => r.required() }), strings('tools'),
-    ] })],
-  })],
-  preview: sub('Stack'),
+  name: 'stack', title: 'Tools', type: 'object',
+  fields: [label, heading, { ...strings('tools'), description: 'One card each; 4 per row on desktop, 2 on mobile.', validation: (r) => r.max(16) }],
+  preview: sub('Tools'),
 });
 
 const offers = defineType({
@@ -93,4 +82,33 @@ const faq = defineType({
   preview: { select: { title: 'heading' }, prepare: ({ title }) => ({ title, subtitle: 'FAQ' }) },
 });
 
-export const blocks = [hero, kpi, builtWith, statement, stack, offers, work, faq];
+// Process: the steps of a project in order, a title each. Steps that depend on an option (`when` = a toggle
+// key) fold away when the visitor switches that option off. The toggles also preset the
+// pricing simulator (opt = option index, care = care plan index in the pricing document).
+const process = defineType({
+  name: 'process', type: 'object',
+  fields: [
+    label, heading, anchor,
+    defineField({ name: 'togglesLabel', title: 'Toggles legend', type: 'string', description: 'e.g. Votre projet comprend' }),
+    defineField({
+      name: 'toggles', type: 'array', validation: (r) => r.max(4),
+      of: [defineArrayMember({ type: 'object', name: 'toggle', fields: [
+        defineField({ name: 'key', type: 'string', description: 'Matched by the steps\' "Only with" field, e.g. design.', validation: (r) => r.required().regex(/^[a-z]+$/) }),
+        defineField({ name: 'label', type: 'string', validation: (r) => r.required() }),
+        defineField({ name: 'opt', title: 'Pricing option index', type: 'number', description: 'Option switched on in the simulator (0 = first option).' }),
+        defineField({ name: 'care', title: 'Pricing care plan index', type: 'number', description: 'Care plan picked in the simulator (0 = none).' }),
+      ], preview: { select: { title: 'label', subtitle: 'key' } } })],
+    }),
+    defineField({
+      name: 'steps', type: 'array', validation: (r) => r.required().max(14),
+      of: [defineArrayMember({ type: 'object', name: 'processStep', fields: [
+        defineField({ name: 'title', type: 'string', validation: (r) => r.required().max(48) }),
+        defineField({ name: 'when', title: 'Only with', type: 'string', description: 'A toggle key (e.g. design): the step folds away when it is off. Empty = always.' }),
+      ], preview: { select: { title: 'title', w: 'when' }, prepare: ({ title, w }: { title?: string; w?: string }) => ({ title, subtitle: w ? `only with ${w}` : undefined }) } })],
+    }),
+    ctas,
+  ],
+  preview: sub('Process'),
+});
+
+export const blocks = [hero, kpi, statement, stack, offers, work, faq, process];

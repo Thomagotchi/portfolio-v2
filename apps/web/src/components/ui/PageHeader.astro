@@ -1,17 +1,20 @@
 ---
 // Inner-page header: tag, h1, lede, then the slot (meta cells). Rises out of a mask at first paint (CSS only,
 // the h1 stays the LCP). The slot sits outside the mask so cells and frames keep their own entries.
-// slot="aside" (About portrait): a second column, 7 + 5 cells on lg, under the text below lg.
+// slot="scene" (Pricing): the header opens as a window (ui/Window, at first paint) on the frame line with the
+// scene inside; the text rises once it has opened, and the whole header feeds the scene's pointer.
 import Headline from './Headline.astro';
+import Window from './Window.astro';
 import Tag from './Tag.astro';
 import type { Headline as H } from '@/lib/types';
 
 interface Props { label: string; heading: H; lede?: string; class?: string }
 const { label, heading, lede, class: cls } = Astro.props;
-const aside = Astro.slots.has('aside');
+const scene = Astro.slots.has('scene');
 ---
-<header class:list={['phd', cls]}>
-  <div class:list={['wrap phd__in', { 'phd__in--2': aside }]}>
+<header class:list={['phd', { 'phd--scene': scene }, cls]}>
+  {scene && <Window mode="load"><slot name="scene" /></Window>}
+  <div class="wrap phd__in">
     <div class="phd__main">
       <div class="phd__text">
         <div class="rise"><Tag>{label}</Tag></div>
@@ -20,25 +23,31 @@ const aside = Astro.slots.has('aside');
       </div>
       <slot />
     </div>
-    {aside && <slot name="aside" />}
   </div>
 </header>
 
 <style lang="scss">
   .phd { padding-block: calc(var(--cell) * 2.5) calc(var(--cell) * 2); }
 
+  .phd--scene {
+    --win-inset: var(--frame);
+    --rise-at: calc(var(--duration-hero) + 0.1s); // text rises once the window has opened
+
+    position: relative;
+    isolation: isolate;
+    padding-bottom: calc(var(--cell) * 2.5);
+
+    // Text inset inside the frame on every width (as the hero): on mobile the frame is the margin line.
+    .phd__in {
+      position: relative;
+      padding-inline: max(calc(var(--margin) + var(--tx)), calc(var(--frame) + var(--space-5))) max(var(--margin), calc(var(--frame) + var(--space-5)));
+    }
+  }
+
   .phd__in, .phd__main {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     gap: var(--space-block);
-  }
-
-  .phd__in--2 {
-    @include mq(lg) {
-      grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
-      align-items: stretch; // the aside is as tall as the text column
-      gap: var(--cell);
-    }
   }
 
   .phd__text {

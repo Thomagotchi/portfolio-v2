@@ -19,7 +19,7 @@ module.exports = {
       // Every French page (autodiscovery stops at 5) and each English template; LHCI swaps in the static
       // server's port. Add new routes here.
       url: [
-        'index', 'a-propos', 'contact', 'tarifs', '404', 'projets/audion', 'projets/la-premiere-brique', 'projets/zelder',
+        'index', 'a-propos', 'contact', 'tarifs', '404', 'en/404', 'projets/audion', 'projets/la-premiere-brique', 'projets/zelder',
         'en/index', 'en/about', 'en/contact', 'en/pricing', 'en/work/audion',
       ].map((p) => `http://localhost/${p}.html`),
       numberOfRuns: 3,

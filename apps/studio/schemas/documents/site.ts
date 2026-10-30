@@ -38,7 +38,12 @@ export default defineType({
         defineField({ name: 'email', type: 'string', validation: (r) => r.required().email() }),
         defineField({ name: 'tz', title: 'Time zone (IANA)', type: 'string', initialValue: 'Europe/Paris' }),
         defineField({ name: 'place', type: 'string' }),
-        defineField({ name: 'status', title: 'Availability', type: 'string' }),
+        defineField({
+          name: 'availability', type: 'string', initialValue: 'available',
+          description: 'Colour of the blinking dot in the footer: green = available, red = busy. Publish to rebuild.',
+          options: { list: [{ title: 'Available (green)', value: 'available' }, { title: 'Busy (red)', value: 'busy' }], layout: 'radio', direction: 'horizontal' },
+        }),
+        defineField({ name: 'status', title: 'Availability text', type: 'string', description: 'Shown beside the dot, e.g. "Disponible" or "Complet jusqu\'en mars".' }),
         defineField({ name: 'reply', title: 'Reply time', type: 'string' }),
         defineField({ name: 'lighthouse', title: 'Lighthouse readout', type: 'string' }),
       ],

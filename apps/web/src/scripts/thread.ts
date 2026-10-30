@@ -1,19 +1,26 @@
 // Section transitions: the pixel thread runs down the frame line from the hero with scroll (its tip at 62%
-// of the viewport) and each seam draws across as the tip passes it. Transform only.
-import { ScrollTrigger, reduceMotion } from './gsap';
+// of the viewport) and each seam draws across as the tip passes it. Transform only. Tablet and desktop only:
+// on mobile and on pages without a hero, no thread, each seam draws as it scrolls in.
+import { gsap, ScrollTrigger, reduceMotion } from './gsap';
+
+const seamsOnScroll = () => {
+  for (const s of document.querySelectorAll<HTMLElement>('[data-seam]')) {
+    ScrollTrigger.create({ trigger: s, start: 'top 92%', once: true, onEnter: () => s.classList.add('is-on') });
+  }
+};
 
 export function initThread() {
   const main = document.querySelector<HTMLElement>('main');
   const thr = document.querySelector<HTMLElement>('[data-thread]');
   const hero = document.querySelector<HTMLElement>('[data-hero]');
   if (!main || !thr) return;
-  // Pages without a hero: no thread, each seam draws as it scrolls in.
-  if (!hero) {
-    for (const s of document.querySelectorAll<HTMLElement>('[data-seam]')) {
-      ScrollTrigger.create({ trigger: s, start: 'top 92%', once: true, onEnter: () => s.classList.add('is-on') });
-    }
-    return;
-  }
+  if (!hero) return seamsOnScroll();
+  const mm = gsap.matchMedia();
+  mm.add('(max-width: 767.98px)', seamsOnScroll);
+  mm.add('(min-width: 768px)', () => runThread(main, thr, hero));
+}
+
+function runThread(main: HTMLElement, thr: HTMLElement, hero: HTMLElement) {
   const line = thr.firstElementChild as HTMLElement;
   const px = thr.lastElementChild as HTMLElement;
   const seams = [...document.querySelectorAll<HTMLElement>('[data-seam]')];
@@ -43,4 +50,5 @@ export function initThread() {
   ScrollTrigger.create({ start: 0, end: 'max', onUpdate: update, onRefresh: measure });
   measure();
   thr.classList.add('is-set');
+  return () => thr.classList.remove('is-set'); // matchMedia reverts the trigger itself
 }

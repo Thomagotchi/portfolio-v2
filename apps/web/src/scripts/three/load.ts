@@ -2,7 +2,6 @@
 // a wider margin loads Three.js during the first load of short pages and costs TBT).
 // Scenes share one Three.js chunk; each scene module is its own small chunk.
 import type { TerrainOptions } from './terrain';
-import type { ReliefOptions } from './relief';
 
 type When = { lazy?: boolean; delay?: number };
 
@@ -18,6 +17,3 @@ function mountScene(host: HTMLElement, load: () => Promise<unknown>, { lazy, del
 
 export const mountTerrain = (host: HTMLElement, opts: TerrainOptions & When) =>
   mountScene(host, () => import('./terrain').then((m) => m.terrain(host, opts)), opts);
-
-export const mountRelief = (host: HTMLElement, opts: ReliefOptions & When = {}) =>
-  mountScene(host, () => import('./relief').then((m) => m.relief(host, opts)), opts);

@@ -10,6 +10,10 @@ interface Props { site: Site }
 const { site } = Astro.props;
 const c = site.contact;
 const t = useT(Astro.currentLocale).footer;
+// Lighthouse readout in two halves: on mobile each half takes a line (no stray separator at a wrap).
+const lh = c.lighthouse?.split(' · ') ?? [];
+const lhHalves = [lh.slice(0, Math.ceil(lh.length / 2)), lh.slice(Math.ceil(lh.length / 2))].filter((h) => h.length).map((h) => h.join(' · '));
+const busy = c.availability === 'busy'; // green dot when available, the accent red when busy
 ---
 <footer class="ft" id="contact" data-footer>
   <div class="ft__field" data-terrain aria-hidden="true"></div>
@@ -20,14 +24,14 @@ const t = useT(Astro.currentLocale).footer;
     <dl class="ft__ro" data-brackets>
       <div><dt class="tag">{t.localTime} · {c.place}</dt><dd><time data-clock data-tz={c.tz}>--:--:--</time></dd></div>
       <div><dt class="tag">{t.reply}</dt><dd>{c.reply}</dd></div>
-      {c.lighthouse && <div><dt class="tag">{t.lighthouse}</dt><dd>{c.lighthouse}</dd></div>}
-      <div><dt class="tag">{t.status}</dt><dd><i class="ft__px" aria-hidden="true"></i>{c.status}</dd></div>
+      {c.lighthouse && <div><dt class="tag">{t.lighthouse}</dt><dd class="ft__lh">{lhHalves.map((h, i) => <>{i > 0 && <span class="ft__lh-sep">{' · '}</span>}<span>{h}</span></>)}</dd></div>}
+      <div><dt class="tag">{t.status}</dt><dd><i class:list={['ft__px', { 'is-busy': busy }]} aria-hidden="true"></i>{c.status}</dd></div>
     </dl>
   </div>
   <div class="ft__bar">
     <Mark size={16} mono />
     <span>© {new Date().getFullYear()} {site.name}</span>
-    <span class="ft__st"><i class="ft__px" aria-hidden="true"></i>{c.status}</span>
+    <span class="ft__st"><i class:list={['ft__px', { 'is-busy': busy }]} aria-hidden="true"></i>{c.status}</span>
     {site.socials?.length ? (
       <ul role="list" class="ft__soc" aria-label={t.elsewhere}>
         {site.socials.map((s) => <li><Button href={s.href} variant="link" rel="me noopener">{s.label}</Button></li>)}
@@ -164,13 +168,27 @@ const t = useT(Astro.currentLocale).footer;
       color: var(--text);
       font-variant-numeric: tabular-nums;
     }
+
+    // Mobile: "100 · 100" over "100 · 100", the middle separator dropped.
+    .ft__lh {
+      gap: 0;
+      white-space: pre;
+
+      @media (width < 768px) { flex-direction: column; align-items: start; }
+    }
+
+    .ft__lh-sep {
+      @media (width < 768px) { display: none; }
+    }
   }
 
   .ft__px {
     flex: none;
     width: 6px;
     height: 6px;
-    background: var(--accent);
+    background: var(--ok);
+
+    &.is-busy { background: var(--accent); }
 
     @include motion { animation: blink 2.4s steps(1) infinite; }
   }

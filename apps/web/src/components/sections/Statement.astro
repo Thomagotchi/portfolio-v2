@@ -1,5 +1,5 @@
 ---
-// Letter scrub: characters brighten with scroll. Tick rulers in both margins and a 3-segment rail (md+).
+// Letter scrub: characters brighten with scroll, a 3-segment rail beside the tag (md+).
 // Screen readers get the plain sentence; the split copy is aria-hidden.
 import Tag from '@/components/ui/Tag.astro';
 import Seam from '@/components/ui/Seam.astro';
@@ -62,25 +62,6 @@ const words = block.text.split(' ');
     :global(.js) .c { color: color-mix(in srgb, var(--text) 26%, var(--bg)); transition: color 0.2s linear; }
     :global(.js) .c:global(.on) { color: var(--text); }
   }
-
-  // Ornaments live in the margin: hidden on mobile, where it is too slim.
-  .st::before, .st::after {
-    content: '';
-    position: absolute;
-    top: calc(var(--space-section) + var(--cell));
-    bottom: var(--cell);
-    width: 12px;
-    background: repeating-linear-gradient(to bottom, color-mix(in srgb, var(--text) 22%, transparent) 0 1px, transparent 1px 16px);
-
-    @include fade-edges(20%);
-
-    display: none;
-
-    @include mq(md) { display: block; }
-  }
-
-  .st::before { left: calc(var(--margin) / 4 - 6px); }
-  .st::after { right: calc(var(--margin) / 4 - 6px); }
 
   .st__rail {
     position: absolute;

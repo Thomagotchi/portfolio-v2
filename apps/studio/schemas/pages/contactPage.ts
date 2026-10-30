@@ -5,7 +5,7 @@ export default defineType({
   name: 'contactPage', title: 'Contact', type: 'document', groups,
   fields: [
     placeholder, label, heading(), lede,
-    strings('types', 'Project chips (multi-select)'), strings('budgets', 'Budget chips'), strings('timings', 'Timing chips'),
+    strings('types', 'Project chips (multi-select). The last one is "not sure yet": picking it clears the others, and the reverse.'), strings('budgets', 'Budget chips'), strings('timings', 'Timing chips'),
     defineField({ name: 'done', title: 'Confirmation', type: 'object', fields: [defineField({ name: 'title', type: 'string' }), defineField({ name: 'text', type: 'string' })] }),
     seo,
   ],

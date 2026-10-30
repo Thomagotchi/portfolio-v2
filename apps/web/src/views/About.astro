@@ -1,13 +1,13 @@
 ---
-// About: header with the portrait, the practice as a letter scrub (the home Statement), timeline,
+// About: hero (window open over the angle field, facts under the text), the practice as a letter scrub (the home Statement), timeline,
 // three principles and the CTA row.
 import Base from '@/layouts/Base.astro';
 import Button from '@/components/ui/Button.astro';
 import Cells from '@/components/ui/Cells.astro';
-import PageHeader from '@/components/ui/PageHeader.astro';
 import Section from '@/components/ui/Section.astro';
 import Statement from '@/components/sections/Statement.astro';
-import Portrait from '@/components/about/Portrait.astro';
+import AngleField from '@/components/ui/AngleField.astro';
+import Hero from '@/components/sections/Hero.astro';
 import Timeline from '@/components/about/Timeline.astro';
 import { getAbout, getSite } from '@/lib/sanity';
 import { useT, type Lang } from '@/i18n';
@@ -25,10 +25,10 @@ const jsonLd = [{
 }];
 ---
 <Base title={t.title} site={site} seo={ab.seo} jsonLd={jsonLd} path="/about">
-  <PageHeader label={ab.label} heading={ab.heading} lede={ab.lede}>
-    <Cells items={ab.facts} n={[2, 2, 2]} />
-    <Portrait slot="aside" image={ab.portrait} name={site.name} />
-  </PageHeader>
+  <Hero block={{ _type: 'hero', _key: 'about-hero', label: ab.label, heading: ab.heading, text: ab.lede }} first>
+    <AngleField slot="scene" pointer="[data-hero]" />
+    <Cells items={ab.facts} n={[2, 4, 4]} />
+  </Hero>
 
   <Statement block={{ _type: 'statement', _key: 'about-st', label: ab.statementLabel, text: ab.statement, cite: ab.statementCite }} />
 

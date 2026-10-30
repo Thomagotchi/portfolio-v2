@@ -1,7 +1,7 @@
 ---
 // Contact: a brief in five fieldsets beside a live readout (sticky on lg, a 2-column strip above the form
 // on md, after it on mobile). Submit → actions.contact (server). On success the panel closes into the
-// mark and the confirmation decodes. ?type=&budget=&timing=&msg= pre-fill the form (pricing → contact).
+// mark and the confirmation decodes. The last project chip ("not sure yet") excludes the others. ?type=&budget=&timing=&msg= pre-fill the form (pricing → contact).
 import Base from '@/layouts/Base.astro';
 import Button from '@/components/ui/Button.astro';
 import PageHeader from '@/components/ui/PageHeader.astro';
@@ -19,7 +19,8 @@ const { lang } = Astro.props;
 const t = useT(lang).contact;
 const [site, ct] = await Promise.all([getSite(lang), getContact(lang)]);
 const opts = (list: string[]) => list.map((label) => ({ label }));
-const rows: [string, string][] = [['type', t.project], ['budget', t.budget], ['timing', t.timing], ['from', t.from], ['msg', t.message]];
+const rows: [string, string][] = [['type', t.project], ['budget', t.budget], ['timing', t.timing], ['from', t.from], ['email', t.email], ['company', t.org], ['msg', t.message]];
+const steps = 5; // progress segments: the required answers (company is optional)
 const jsonLd = [{ '@type': 'ContactPage', name: t.title, about: { '@id': `${Astro.site}#person` } }];
 ---
 <Base title={t.title} site={site} seo={ct.seo} jsonLd={jsonLd} path="/contact">
@@ -31,11 +32,12 @@ const jsonLd = [{ '@type': 'ContactPage', name: t.title, about: { '@id': `${Astr
         <form class="cf__form" novalidate data-form data-err={JSON.stringify(t.err)}>
           <input type="hidden" name="lang" value={lang} />
           <Fieldset n={1} legend={t.project} name="type"><Chips name="type" multi options={opts(ct.types)} describedby="type-err" /></Fieldset>
-          <Fieldset n={2} legend={t.budget}><Chips name="budget" options={opts(ct.budgets)} /></Fieldset>
-          <Fieldset n={3} legend={t.timing}><Chips name="timing" options={opts(ct.timings)} /></Fieldset>
+          <Fieldset n={2} legend={t.budget} name="budget"><Chips name="budget" options={opts(ct.budgets)} describedby="budget-err" /></Fieldset>
+          <Fieldset n={3} legend={t.timing} name="timing"><Chips name="timing" options={opts(ct.timings)} describedby="timing-err" /></Fieldset>
           <Fieldset n={4} legend={t.you}>
             <div class="cf__you">
-              <Field name="name" label={t.name} placeholder={t.namePh} autocomplete="name" required />
+              <Field name="firstName" label={t.firstName} placeholder={t.firstNamePh} autocomplete="given-name" required />
+              <Field name="lastName" label={t.lastName} placeholder={t.lastNamePh} autocomplete="family-name" required />
               <Field name="email" label={t.email} type="email" placeholder={t.emailPh} autocomplete="email" required />
               <Field name="company" label={t.company} placeholder={t.companyPh} autocomplete="organization" />
             </div>
@@ -43,7 +45,9 @@ const jsonLd = [{ '@type': 'ContactPage', name: t.title, about: { '@id': `${Astr
           <Fieldset n={5} legend={t.message}>
             <Field name="msg" label={t.need} placeholder={t.needPh} textarea required />
           </Fieldset>
+          {/* Bot traps (see actions): a field people never see, and the time the page loaded (set by the script). */}
           <div class="cf__hp" aria-hidden="true"><label>Website <input type="text" name="website" tabindex="-1" autocomplete="off" /></label></div>
+          <input type="hidden" name="t" data-t />
           <div class="cf__go">
             <Button type="submit" variant="accent" size="md" lgSize="lg">{t.submit}</Button>
             <span class="muted small">{t.noNews} {site.contact.reply}.</span>
@@ -62,7 +66,7 @@ const jsonLd = [{ '@type': 'ContactPage', name: t.title, about: { '@id': `${Astr
       </div>
 
       <aside class="ro" aria-label={t.yourBrief}>
-        <div class="ro__hd"><span class="tag">{t.yourBrief}</span><div class="ro__pb" aria-hidden="true">{rows.map(() => <i></i>)}</div></div>
+        <div class="ro__hd"><span class="tag">{t.yourBrief}</span><div class="ro__pb" aria-hidden="true">{Array.from({ length: steps }, () => <i></i>)}</div></div>
         {rows.map(([k, l]) => <div><span class="tag">{l}</span><b class="mono is-nil" data-r={k}>—</b></div>)}
         <div><span class="tag">{useT(lang).footer.localTime} · {site.contact.place}</span><b class="mono"><time data-clock data-tz={site.contact.tz}>--:--:--</time></b></div>
       </aside>
@@ -85,7 +89,8 @@ const jsonLd = [{ '@type': 'ContactPage', name: t.title, about: { '@id': `${Astr
     const out = (k: string) => root.querySelector<HTMLElement>(`[data-r="${k}"]`)!;
     const field = (n: string) => form.elements.namedItem(n) as HTMLInputElement;
     const okMail = (s: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(s);
-    const T = JSON.parse(form.dataset.err!) as Record<'type' | 'required' | 'email' | 'msg' | 'field', string>;
+    const T = JSON.parse(form.dataset.err!) as Record<'type' | 'pick' | 'required' | 'email' | 'msg' | 'field', string>;
+    form.querySelector<HTMLInputElement>('[data-t]')!.value = String(Date.now());
     const checked = (n: string) => [...form.querySelectorAll<HTMLInputElement>(`[name="${n}"]:checked`)].map((i) => i.value);
 
     // Readout: derived from the form, never stored. Values decode when they change.
@@ -98,14 +103,20 @@ const jsonLd = [{ '@type': 'ContactPage', name: t.title, about: { '@id': `${Astr
       decode(el, text, 500);
     };
     const sync = () => {
-      const type = checked('type'), name = field('name').value.trim(), email = field('email').value.trim(), msg = field('msg').value.trim();
+      const type = checked('type'), email = field('email').value.trim(), msg = field('msg').value.trim();
+      const name = `${field('firstName').value.trim()} ${field('lastName').value.trim()}`.trim();
       put('type', type.join(' + '));
       put('budget', checked('budget')[0] ?? '');
       put('timing', checked('timing')[0] ?? '');
-      put('from', name || email ? `${name}${email ? ` <${email}>` : ''}` : '');
+      put('from', name);
+      put('email', email);
+      put('company', field('company').value.trim());
       put('msg', msg.length > 60 ? `${msg.slice(0, 60)}…` : msg);
-      [type.length > 0, checked('budget').length > 0, checked('timing').length > 0, !!name && okMail(email), msg.length >= 20]
-        .forEach((on, i) => segs[i].classList.toggle('is-on', on));
+      // Each segment fills by its share of the step: "you" by thirds (first name, last name, a valid email),
+      // the message up to the 20-character minimum.
+      const you = [!!field('firstName').value.trim(), !!field('lastName').value.trim(), okMail(email)].filter(Boolean).length / 3;
+      [+(type.length > 0), +(checked('budget').length > 0), +(checked('timing').length > 0), you, Math.min(1, msg.length / 20)]
+        .forEach((p, i) => { segs[i].style.setProperty('--p', String(p)); segs[i].classList.toggle('is-on', p === 1); });
       root.querySelector('[data-count]')!.textContent = `${field('msg').value.length} / 1000`;
     };
 
@@ -121,17 +132,31 @@ const jsonLd = [{ '@type': 'ContactPage', name: t.title, about: { '@id': `${Astr
     const validate = () => {
       const errs: Record<string, string> = {};
       if (!checked('type').length) errs.type = T.type;
-      if (!field('name').value.trim()) errs.name = T.required;
+      if (!checked('budget').length) errs.budget = T.pick;
+      if (!checked('timing').length) errs.timing = T.pick;
+      if (!field('firstName').value.trim()) errs.firstName = T.required;
+      if (!field('lastName').value.trim()) errs.lastName = T.required;
       const email = field('email').value.trim();
       if (!okMail(email)) errs.email = email ? T.email : T.required;
       if (field('msg').value.trim().length < 20) errs.msg = T.msg;
       return errs;
     };
     const showErrs = (errs: Record<string, string>) => {
-      ['type', 'name', 'email', 'msg'].forEach((n) => setErr(n, errs[n] ?? ''));
+      ['type', 'budget', 'timing', 'firstName', 'lastName', 'email', 'msg'].forEach((n) => setErr(n, errs[n] ?? ''));
       const first = Object.keys(errs)[0];
       if (first) form.querySelector<HTMLInputElement>(`[name="${first}"]`)?.focus();
     };
+
+    // "Not sure yet" (the last project chip) and the others exclude each other.
+    const types = [...form.querySelectorAll<HTMLInputElement>('[name="type"]')];
+    const unsure = types.at(-1)!;
+    form.addEventListener('change', (e) => {
+      const i = e.target as HTMLInputElement;
+      if (i.name !== 'type' || !i.checked) return;
+      if (i === unsure) types.forEach((x) => { if (x !== unsure) x.checked = false; });
+      else unsure.checked = false;
+      sync();
+    });
 
     form.addEventListener('input', (e) => {
       const n = (e.target as HTMLInputElement).name;
@@ -161,7 +186,7 @@ const jsonLd = [{ '@type': 'ContactPage', name: t.title, about: { '@id': `${Astr
       btn.disabled = false;
       if (error) {
         // The server checks again; its field errors map to this page's language.
-        if (isInputError(error)) showErrs(Object.fromEntries(Object.keys(error.fields).map((k) => [k, T[k as keyof typeof T] ?? T.field])));
+        if (isInputError(error)) showErrs(Object.fromEntries(Object.keys(error.fields).map((k) => [k, ({ budget: T.pick, timing: T.pick, firstName: T.required, lastName: T.required } as Record<string, string>)[k] ?? T[k as keyof typeof T] ?? T.field])));
         else fail.textContent = error.message;
         return;
       }
@@ -277,11 +302,20 @@ const jsonLd = [{ '@type': 'ContactPage', name: t.title, about: { '@id': `${Astr
       @include mq(lg) { grid-column: auto; }
     }
 
+    // md strip (2 columns, the header spans the first row): a lone last cell spans its row.
+    > div:last-child:nth-child(even) {
+      @include mq(md) { grid-column: 1 / -1; }
+
+      @include mq(lg) { grid-column: auto; }
+    }
+
     b {
       color: var(--text);
       overflow-wrap: anywhere;
 
       &:global(.is-nil) { color: var(--muted); }
+
+      &[data-r='msg'] { white-space: pre-line; } // the message's line breaks show as typed
     }
   }
 
@@ -290,12 +324,24 @@ const jsonLd = [{ '@type': 'ContactPage', name: t.title, about: { '@id': `${Astr
     grid-template-columns: repeat(5, 1fr);
     gap: var(--space-1);
 
+    // Segment: the fill grows with --p (0 → 1, scaleX from the left); the frame turns solid when full.
     i {
+      position: relative;
       height: 6px;
       border: 1px solid var(--muted);
-      transition: background var(--duration-fast) var(--ease-soft), border-color var(--duration-fast);
+      transition: border-color var(--duration-fast);
 
-      &:global(.is-on) { background: var(--text); border-color: var(--text); }
+      &::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: var(--text);
+        transform: scaleX(var(--p, 0));
+        transform-origin: left;
+        transition: transform var(--duration-base) var(--ease-move);
+      }
+
+      &:global(.is-on) { border-color: var(--text); }
     }
   }
 </style>

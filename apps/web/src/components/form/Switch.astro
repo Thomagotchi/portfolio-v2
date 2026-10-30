@@ -1,13 +1,13 @@
 ---
-// Option row with a switch: a native checkbox (role="switch"), the whole row is its label.
-interface Props { name: string; value: string; label: string; note?: string; price: string; checked?: boolean }
+// Option row with a switch: a native checkbox (role="switch"), the whole row is its label. Price optional.
+interface Props { name: string; value: string; label: string; note?: string; price?: string; checked?: boolean }
 const { name, value, label, note, price, checked = false } = Astro.props;
 ---
 <label class="op">
   <input type="checkbox" role="switch" name={name} value={value} checked={checked} />
   <span class="op__sw" aria-hidden="true"></span>
   <span class="op__t"><b>{label}</b>{note && <small>{note}</small>}</span>
-  <span class="mono">{price}</span>
+  {price && <span class="mono">{price}</span>}
 </label>
 
 <style lang="scss">

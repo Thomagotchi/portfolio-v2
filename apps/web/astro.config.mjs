@@ -1,8 +1,9 @@
-import { defineConfig, envField, fontProviders } from 'astro/config';
+import { defineConfig, fontProviders } from 'astro/config';
 import sitemap from '@astrojs/sitemap';
 import node from '@astrojs/node';
 import vercel from '@astrojs/vercel';
 import deferScripts from './integrations/defer-scripts.mjs';
+import locale404 from './integrations/locale-404.mjs';
 import { fileURLToPath } from 'node:url';
 import { SITE } from './src/config.ts';
 import { families } from './src/lib/fonts.ts';
@@ -34,24 +35,18 @@ export default defineConfig({
   site: SITE.url,
   output: 'static',
   adapter: process.env.VERCEL ? vercel() : node({ mode: 'standalone' }),
-  // Contact action (src/actions). All optional: without the key the action logs the brief (dry run).
-  env: {
-    schema: {
-      RESEND_API_KEY: envField.string({ context: 'server', access: 'secret', optional: true }),
-      CONTACT_TO: envField.string({ context: 'server', access: 'secret', optional: true }),
-      CONTACT_FROM: envField.string({ context: 'server', access: 'secret', optional: true }),
-    },
-  },
   trailingSlash: 'never',
   // French at the root (French slugs: /a-propos, /tarifs, /projets/x), English under /en. Gives
   // Astro.currentLocale to every component; URL mapping and UI strings live in src/i18n.
   i18n: { locales: ['fr', 'en'], defaultLocale: 'fr', routing: { prefixDefaultLocale: false } },
   // preserve: index routes → dir/index.html (so /en and /en/… coexist), every other page → name.html.
   build: { format: 'preserve', inlineStylesheets: 'always' },
-  integrations: [sitemap({ serialize: hreflang }), deferScripts()],
+  integrations: [sitemap({ serialize: hreflang, filter: (page) => !/\/404\/?$/.test(page) }), deferScripts(), locale404(['en'])],
   fonts,
   image: { remotePatterns: [{ protocol: 'https', hostname: 'cdn.sanity.io' }] },
   vite: {
+    // One .env at the repo root for the site and the Studio (gitignored).
+    envDir: fileURLToPath(new URL('../..', import.meta.url)),
     // The terrain chunk is Three.js core (~130 KB gz, budget 150): loaded on idle, never on the critical path.
     build: { chunkSizeWarningLimit: 600 },
     css: {

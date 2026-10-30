@@ -1,5 +1,8 @@
 // Interface strings (everything that is not editable content). French first: it is the default locale.
 // Copy rules: the web-copy skill (plain words, no AI tells, "vous", straight apostrophes).
+// French: under 2 is singular (« 1,5 semaine »).
+const semaines = (w: string) => (parseFloat(w.replace(',', '.')) < 2 ? 'semaine' : 'semaines');
+
 const fr = {
   skip: 'Aller au contenu',
   home: (name: string) => `${name}, accueil`,
@@ -37,9 +40,14 @@ const fr = {
     year: 'Année',
     stack: 'Stack',
     credit: "Projet réalisé chez Bruno, avec l'équipe créditée plus haut. Images : Bruno.",
+    roles: {
+      direction: 'Direction', strategy: 'Planning stratégique', creative: 'Direction de création', art: 'Direction artistique',
+      webdesign: 'Web design', copy: 'Conception-rédaction', dev: 'Développement web', threeD: '3D', motion: 'Motion design',
+      illustration: 'Illustration', product: 'Product design', photo: 'Photo', pm: 'Gestion de projet',
+    },
   },
 
-  about: { title: 'À propos', portrait: 'Portrait · à venir', profile: (name: string) => `À propos de ${name}` },
+  about: { title: 'À propos', profile: (name: string) => `À propos de ${name}` },
 
   pricing: {
     title: 'Tarifs',
@@ -47,13 +55,18 @@ const fr = {
     from: 'dès',
     useSim: 'Partir de là dans le simulateur ↓',
     ask: 'Demander mes disponibilités',
-    type: 'Type de site',
+    type: 'Type de projet',
     pages: 'Pages',
-    included: (n: number, price: string) => `${n} incluses, puis ${price} la page`,
+    days: 'Jours',
+    dayRate: (price: string) => `${price} la journée, facturée aux jours travaillés`,
+    included: (first: string, next: string) => `${first} la première, puis ${next} la page`,
+    free: 'Mentions légales et page 404 offertes, mise en ligne incluse.',
+    perPage: ' / page',
     options: 'Options',
     delivery: 'Délai',
     agreed: 'Dates fixées ensemble',
     care: 'Suivi après la mise en ligne',
+    plan: 'Formule',
     handover: 'Remise des accès, sans suivi',
     perMonth: ' / mois',
     estimate: 'Estimation',
@@ -62,18 +75,20 @@ const fr = {
     details: 'Détail',
     hide: 'Masquer le détail',
     duration: 'Durée',
-    weeks: (w: string) => `≈ ${w} semaines`,
+    weeks: (w: string) => `≈ ${w} ${semaines(w)}`,
     deposit: (pct: number) => `Acompte ${pct} %`,
     careKv: 'Suivi',
     none: 'Aucun',
     placeholder: 'Prix provisoires, arrondis à 10 €.',
     send: 'Envoyer cette estimation',
-    legend: ['Base', 'Pages en plus', 'Options', 'Options en %', 'Express'],
+    legend: ['Première page', 'Pages suivantes', 'Options', 'Options en %', 'Express'],
     service: 'Conception, développement et suivi de sites web',
     projects: 'Projets de sites web',
     // Pre-fills the contact message; the client can edit it before sending.
-    msg: (type: string, pages: number, opts: string, total: string, weeks: string) =>
-      `Estimation du simulateur : ${type}, ${pages} pages${opts}. ${total} HT, environ ${weeks} semaines.`,
+    msg: (type: string, pages: number, opts: string, total: string, weeks: string, unit: 'pages' | 'days' | 'care' = 'pages') =>
+      unit === 'care'
+        ? `Estimation du simulateur : ${type}, formule ${opts}. ${total} HT par mois.`
+        : `Estimation du simulateur : ${type}, ${pages} ${unit === 'days' ? 'jours' : 'pages'}${opts}. ${total} HT, environ ${weeks} ${semaines(weeks)}.`,
   },
 
   contact: {
@@ -85,11 +100,14 @@ const fr = {
     you: 'Vous',
     message: 'Message',
     from: 'De',
-    name: 'Nom',
-    namePh: 'Votre nom',
+    firstName: 'Prénom',
+    firstNamePh: 'Camille',
+    lastName: 'Nom',
+    lastNamePh: 'Martin',
     email: 'E-mail',
     emailPh: 'vous@studio.fr',
-    company: 'Structure · facultatif',
+    company: 'Votre entreprise · facultatif',
+    org: 'Entreprise',
     companyPh: 'Studio, marque, association…',
     need: 'Le site dont vous avez besoin',
     needPh: "Quelques lignes sur le projet, l'échéance, des liens si vous en avez…",
@@ -100,6 +118,7 @@ const fr = {
     yourBrief: 'Votre brief',
     err: {
       type: 'Choisissez au moins une case',
+      pick: 'Choisissez une option',
       required: 'À remplir',
       email: "Vérifiez l'adresse",
       msg: 'Encore quelques mots',
@@ -113,11 +132,14 @@ const fr = {
   notFound: {
     title: 'Page introuvable',
     status: 'Introuvable',
-    hintFine: 'Ramenez le pixel rouge dans son coin',
-    hintTouch: 'Touchez le pixel rouge',
+    hintFine: 'Frappez le pixel rouge vers le coin en haut à gauche',
+    hintTouch: 'Touchez à côté du pixel rouge pour le lancer vers le coin',
+    hitsOne: '· 1 coup',
+    hitsMany: '· {n} coups',
+    doneOne: 'Rentré en 1 coup',
+    doneMany: 'Rentré en {n} coups',
     home: "Retour à l'accueil",
     work: 'Voir les projets',
-    putBack: 'Le remettre à sa place',
   },
 };
 
@@ -160,9 +182,14 @@ const en: Ui = {
     year: 'Year',
     stack: 'Stack',
     credit: 'Made at Bruno, with the team credited above. Images: Bruno.',
+    roles: {
+      direction: 'Direction', strategy: 'Strategy', creative: 'Creative direction', art: 'Art direction',
+      webdesign: 'Web design', copy: 'Copywriting', dev: 'Web development', threeD: '3D', motion: 'Motion design',
+      illustration: 'Illustration', product: 'Product design', photo: 'Photography', pm: 'Project management',
+    },
   },
 
-  about: { title: 'About', portrait: 'Portrait · coming', profile: (name) => `About ${name}` },
+  about: { title: 'About', profile: (name) => `About ${name}` },
 
   pricing: {
     title: 'Pricing',
@@ -170,13 +197,18 @@ const en: Ui = {
     from: 'from',
     useSim: 'Start from this in the simulator ↓',
     ask: 'Ask for available dates',
-    type: 'Type of site',
+    type: 'Type of project',
     pages: 'Pages',
-    included: (n, price) => `${n} included, then ${price} a page`,
+    days: 'Days',
+    dayRate: (price) => `${price} a day, billed on days worked`,
+    included: (first, next) => `${first} for the first, then ${next} a page`,
+    free: 'Legal pages and the 404 are free, launch included.',
+    perPage: ' / page',
     options: 'Options',
     delivery: 'Delivery',
     agreed: 'Dates we agree on',
     care: 'Care after launch',
+    plan: 'Plan',
     handover: 'Hand-over only',
     perMonth: ' / month',
     estimate: 'Estimate',
@@ -185,16 +217,18 @@ const en: Ui = {
     details: 'Details',
     hide: 'Hide details',
     duration: 'Duration',
-    weeks: (w) => `≈ ${w} weeks`,
+    weeks: (w) => `≈ ${w} week${w === '1' ? '' : 's'}`,
     deposit: (pct) => `Deposit ${pct}%`,
     careKv: 'Care',
     none: 'None',
     placeholder: 'Placeholder prices, rounded to €10.',
     send: 'Send this estimate',
-    legend: ['Base', 'Extra pages', 'Options', 'Percent options', 'Express'],
+    legend: ['First page', 'Other pages', 'Options', 'Percent options', 'Express'],
     service: 'Website design, development and care',
     projects: 'Website projects',
-    msg: (type, pages, opts, total, weeks) => `Estimate from the simulator: ${type}, ${pages} pages${opts}. ${total} excl. VAT, about ${weeks} weeks.`,
+    msg: (type, pages, opts, total, weeks, unit = 'pages') => unit === 'care'
+      ? `Estimate from the simulator: ${type}, ${opts} plan. ${total} excl. VAT a month.`
+      : `Estimate from the simulator: ${type}, ${pages} ${unit === 'days' ? 'days' : 'pages'}${opts}. ${total} excl. VAT, about ${weeks} week${weeks === '1' ? '' : 's'}.`,
   },
 
   contact: {
@@ -206,11 +240,14 @@ const en: Ui = {
     you: 'You',
     message: 'Message',
     from: 'From',
-    name: 'Name',
-    namePh: 'Your name',
+    firstName: 'First name',
+    firstNamePh: 'Alex',
+    lastName: 'Last name',
+    lastNamePh: 'Morgan',
     email: 'Email',
     emailPh: 'you@studio.com',
-    company: 'Company · optional',
+    company: 'Your company · optional',
+    org: 'Company',
     companyPh: 'Studio, brand, non-profit…',
     need: 'The site you need',
     needPh: 'A few lines on the project, the deadline, any links…',
@@ -221,6 +258,7 @@ const en: Ui = {
     yourBrief: 'Your brief',
     err: {
       type: 'Pick at least one',
+      pick: 'Pick one',
       required: 'Required',
       email: 'Check the address',
       msg: 'A few more words',
@@ -234,11 +272,14 @@ const en: Ui = {
   notFound: {
     title: 'Page not found',
     status: 'Not found',
-    hintFine: 'Drag the red pixel back to its corner',
-    hintTouch: 'Tap the red pixel',
+    hintFine: 'Knock the red pixel into the top-left corner',
+    hintTouch: 'Tap beside the red pixel to send it to the corner',
+    hitsOne: '· 1 hit',
+    hitsMany: '· {n} hits',
+    doneOne: 'In the corner in 1 hit',
+    doneMany: 'In the corner in {n} hits',
     home: 'Back to home',
     work: 'See work',
-    putBack: 'Put it back',
   },
 };
 

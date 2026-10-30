@@ -6,6 +6,7 @@ import Base from '@/layouts/Base.astro';
 import Accordion from '@/components/ui/Accordion.astro';
 import Button from '@/components/ui/Button.astro';
 import Odometer from '@/components/ui/Odometer.astro';
+import AccentCells from '@/components/ui/AccentCells.astro';
 import PageHeader from '@/components/ui/PageHeader.astro';
 import Section from '@/components/ui/Section.astro';
 import Chips from '@/components/form/Chips.astro';
@@ -28,6 +29,7 @@ const send = (q: string) => `${localize('/contact', lang)}?${q}`;
 const legend = [t.legend[0], t.legend[1], t.legend[2], pr.options.filter((o) => o.pct).map((o) => o.label).join(', ') || t.legend[3], t.legend[4]];
 const t0 = pr.types[s0.type];
 const pct = (n: number) => `${((n - 1) / (pr.maxPages - 1)) * 100}%`;
+const sites = pr.types.map((ty, i) => [ty, i] as const).filter(([ty]) => !ty.days && !ty.careOnly); // types priced by the page
 const jsonLd = [{
   '@type': 'Service', name: t.service, provider: { '@id': `${Astro.site}#person` }, areaServed: 'FR',
   offers: [
@@ -35,12 +37,14 @@ const jsonLd = [{
       '@type': 'Offer', name: p.title, category: p.label, priceCurrency: 'EUR',
       priceSpecification: { '@type': p.per ? 'UnitPriceSpecification' : 'PriceSpecification', minPrice: p.from, priceCurrency: 'EUR', valueAddedTaxIncluded: false, ...(p.per && { unitText: 'MONTH' }) },
     })),
-    { '@type': 'AggregateOffer', name: t.projects, priceCurrency: 'EUR', lowPrice: Math.min(...pr.types.map((t) => t.base)), highPrice: estimate({ type: pr.types.length - 1, pages: pr.maxPages, opts: pr.options.map(() => true), delivery: pr.delivery.length - 1, care: 0 }, pr).total },
+    { '@type': 'AggregateOffer', name: t.projects, priceCurrency: 'EUR', lowPrice: Math.min(...sites.map(([ty]) => ty.base)), highPrice: estimate({ type: sites.at(-1)![1], pages: pr.maxPages, opts: pr.options.map(() => true), delivery: pr.delivery.length - 1, care: 0 }, pr).total },
   ],
 }, { '@type': 'FAQPage', mainEntity: pr.faq.map((f) => ({ '@type': 'Question', name: f.question, acceptedAnswer: { '@type': 'Answer', text: f.answer } })) }];
 ---
 <Base title={t.title} site={site} seo={pr.seo} jsonLd={jsonLd} path="/pricing">
-  <PageHeader label={pr.label} heading={pr.heading} lede={pr.lede} />
+  <PageHeader label={pr.label} heading={pr.heading} lede={pr.lede}>
+    <AccentCells slot="scene" pointer=".phd" clear=".phd__text > *" />
+  </PageHeader>
 
   <Section label={t.points}>
     <ul role="list" class="cells pp" data-brackets style={`--n:1;--n-md:2;--n-lg:6`}>
@@ -60,34 +64,42 @@ const jsonLd = [{
 
   <Section label={pr.simLabel} heading={pr.simHeading} id="simulator">
     <div class="sim" data-sim>
-      <div class="sim__c" data-sim-form>
+      <div class="sim__c sim__form" data-sim-form>
         <Fieldset n={1} legend={t.type}>
-          <Chips name="type" cols={pr.types.length} checked={[String(s0.type)]} options={pr.types.map((t, i) => ({ label: t.label, note: t.note, value: String(i) }))} />
+          <Chips name="type" fill checked={[String(s0.type)]} options={pr.types.map((t, i) => ({ label: t.label, note: t.note, value: String(i) }))} />
         </Fieldset>
+        {/* Folds: pages (off for maintenance alone), options + delivery (off for both), care (off by the day). */}
+        <div class="sim__fold" data-fold="pages"><div class="sim__c">
         <Fieldset n={2} legend={t.pages}>
-          <div class="rg" style={`--p:${pct(s0.pages)};--inc:${pct(t0.pages)};--tw:${100 / (pr.maxPages - 1)}%`}>
-            <div class="rg__v"><label for="pages"><b data-pages>{String(s0.pages).padStart(2, '0')}</b> {t.pages.toLowerCase()}</label><span class="mono" data-included>{t.included(t0.pages, $(pr.pagePrice))}</span></div>
+          <div class="rg" style={`--p:${pct(s0.pages)};--inc:${pct(1)};--tw:${100 / (pr.maxPages - 1)}%`}>
+            <div class="rg__v"><label for="pages"><b data-pages>{String(s0.pages).padStart(2, '0')}</b> <span data-unit>{t.pages.toLowerCase()}</span></label><span class="mono" data-included>{t.included($(t0.base), $(pr.pagePrice))}</span></div>
             <input id="pages" name="pages" type="range" min="1" max={pr.maxPages} value={s0.pages} />
             <div class="rg__t" aria-hidden="true"><i></i></div>
+            <p class="small muted" data-free>{t.free}</p>
           </div>
         </Fieldset>
+        </div></div>
+        <div class="sim__fold" data-fold="opts"><div class="sim__c">
         <Fieldset n={3} legend={t.options}>
           <div class="ops">
-            {pr.options.map((o, i) => <Switch name="opt" value={String(i)} label={o.label} note={o.note} checked={!!o.on} price={o.pct ? `+ ${o.pct}${lang === 'fr' ? '\u202f' : ''}%` : `+ ${$(o.price ?? 0)}`} />)}
+            {pr.options.map((o, i) => <Switch name="opt" value={String(i)} label={o.label} note={o.note} checked={!!o.on} price={o.pct ? `+ ${o.pct}${lang === 'fr' ? '\u202f' : ''}%` : o.perPage && o.perPage === o.price ? `+ ${$(o.price)}${t.perPage}` : `+ ${$(o.price ?? 0)}`} />)}
           </div>
         </Fieldset>
         <Fieldset n={4} legend={t.delivery}>
           <Chips name="delivery" cols={pr.delivery.length} checked={['0']} options={pr.delivery.map((d, i) => ({ label: d.label, note: d.pct ? `+ ${d.pct}${lang === 'fr' ? '\u202f' : ''}%${d.note ? `, ${d.note}` : ''}` : t.agreed, value: String(i) }))} />
         </Fieldset>
+        </div></div>
+        <div class="sim__fold" data-fold="care"><div class="sim__c">
         <Fieldset n={5} legend={t.care}>
           <Chips name="care" cols={pr.care.length} checked={['0']} options={pr.care.map((c, i) => ({ label: c.label, note: c.month ? `${$(c.month)}${t.perMonth}` : t.handover, value: String(i) }))} />
         </Fieldset>
+        </div></div>
       </div>
 
       <aside class="est" aria-label={t.estimate} data-est>
         <div class="est__tot">
           <span class="tag">{t.estTag}</span>
-          <p class="est__v">{lang === 'en' && <span>€</span>}<Odometer value={eur(e0.total, lang)} live class="est__odo" />{lang === 'fr' && <span>€</span>}</p>
+          <p class="est__v">{lang === 'en' && <span>€</span>}<Odometer value={eur(e0.total, lang)} live class="est__odo" />{lang === 'fr' && <span>€</span>}<small data-month hidden>{t.perMonth}</small></p>
           <p class="sr-only" aria-live="polite" data-said>{$(e0.total)} {t.exVat}</p>
           <button class="est__more" type="button" aria-expanded="false" aria-controls="est-details" data-more>{t.details}</button>
         </div>
@@ -134,7 +146,13 @@ const jsonLd = [{
     const form = root.querySelector<HTMLElement>('[data-sim-form]')!;
     const $ = <T extends HTMLElement>(sel: string) => root.querySelector<T>(sel)!;
     const range = form.querySelector<HTMLInputElement>('[name="pages"]')!;
-    const pct = (n: number) => `${((n - 1) / (pr.maxPages - 1)) * 100}%`;
+    let max = pr.maxPages;
+    const pct = (n: number) => `${((n - 1) / (max - 1)) * 100}%`;
+    const unit = range.closest('fieldset')!.querySelector<HTMLElement>('legend .tag')!;
+    const folds = Object.fromEntries([...root.querySelectorAll<HTMLElement>('[data-fold]')].map((f) => [f.dataset.fold!, f]));
+    const fold = (k: string, off: boolean) => { folds[k].classList.toggle('is-off', off); folds[k].inert = off; };
+    const careNone = form.querySelector<HTMLInputElement>('[name="care"][value="0"]')!;
+    const careTag = careNone.closest('fieldset')!.querySelector<HTMLElement>('legend .tag')!;
     const radio = (n: string) => Number(form.querySelector<HTMLInputElement>(`[name="${n}"]:checked`)?.value ?? 0);
     const state = (): EstimateState => ({
       type: radio('type'), pages: Number(range.value), delivery: radio('delivery'), care: radio('care'),
@@ -144,16 +162,41 @@ const jsonLd = [{
 
     const draw = () => {
       const s = state();
-      // A bigger type never shows fewer pages than it includes.
-      if (s.type !== lastType) { lastType = s.type; s.pages = Math.max(s.pages, pr.types[s.type].pages); range.value = String(s.pages); }
-      const ty = pr.types[s.type], e = estimate(s, pr);
+      const ty = pr.types[s.type], days = !!ty.days, care = !!ty.careOnly;
+      // Picking a type sets its count (one-page site → 1 page, support → its days); the range then moves
+      // freely. A type billed by the day turns the range into days and folds the options away.
+      if (s.type !== lastType) {
+        lastType = s.type;
+        max = days ? pr.maxDays ?? 20 : pr.maxPages;
+        range.max = String(max);
+        s.pages = ty.pages;
+        range.value = String(s.pages);
+        unit.textContent = days ? t.days : t.pages;
+        $('[data-unit]').textContent = (days ? t.days : t.pages).toLowerCase();
+        root.classList.toggle('is-days', days);
+        root.classList.toggle('is-care', care);
+        fold('pages', care);
+        fold('opts', days || care);
+        fold('care', days);
+        // Maintenance alone: a plan is the point, so "none" leaves the choice (the first plan is picked).
+        careNone.closest<HTMLElement>('.chip')!.hidden = care;
+        careTag.textContent = care ? t.plan : t.care;
+        careNone.closest<HTMLElement>('[data-chips]')!.style.setProperty('--n', String(pr.care.length - (care ? 1 : 0)));
+        if (care && careNone.checked) { form.querySelector<HTMLInputElement>('[name="care"][value="1"]')!.checked = true; s.care = 1; }
+        // Fieldset numbers follow the visible ones.
+        let n = 0;
+        form.querySelectorAll<HTMLElement>('fieldset').forEach((f) => { if (!f.closest('.is-off')) f.querySelector('.fs__n')!.textContent = String(++n).padStart(2, '0'); });
+      }
+      $('[data-month]').hidden = !care;
+      const e = estimate(s, pr);
       const rg = range.closest<HTMLElement>('.rg')!;
       rg.style.setProperty('--p', pct(s.pages));
-      rg.style.setProperty('--inc', pct(ty.pages));
+      rg.style.setProperty('--tw', `${100 / (max - 1)}%`);
+
       $('[data-pages]').textContent = String(s.pages).padStart(2, '0');
-      $('[data-included]').textContent = t.included(ty.pages, $$(pr.pagePrice));
+      $('[data-included]').textContent = days ? t.dayRate($$(ty.base)) : t.included($$(ty.base), $$(pr.pagePrice));
       setOdometer($('.est__odo'), eur(e.total, lang));
-      $('[data-said]').textContent = `${$$(e.total)} ${t.exVat}`;
+      $('[data-said]').textContent = `${$$(e.total)} ${t.exVat}${care ? t.perMonth : ''}`;
       root.querySelectorAll<HTMLElement>('.sbar i').forEach((seg, i) => seg.style.setProperty('--w', `${(e.parts[i] / e.total) * 100}%`));
       root.querySelectorAll<HTMLElement>('[data-part]').forEach((el, i) => { el.textContent = $$(e.parts[i]); el.parentElement!.classList.toggle('is-nil', !e.parts[i]); });
       $('[data-weeks]').textContent = t.weeks(lang === 'fr' ? String(e.weeks).replace('.', ',') : String(e.weeks));
@@ -162,6 +205,16 @@ const jsonLd = [{
       $<HTMLAnchorElement>('[data-send]').href = `${contact}?${contactQuery(s, pr, ct, t.msg, lang)}`;
     };
     form.addEventListener('input', draw);
+
+    // Preset from the URL (?opt=0,4&care=1, sent by the home page's process section): options and care plan.
+    const q = new URLSearchParams(location.search);
+    if (q.has('opt') || q.has('care')) {
+      const on = new Set((q.get('opt') ?? '').split(',').filter(Boolean));
+      form.querySelectorAll<HTMLInputElement>('[name="opt"]').forEach((b) => (b.checked = on.has(b.value)));
+      const care = form.querySelector<HTMLInputElement>(`[name="care"][value="${q.get('care') ?? '0'}"]`);
+      if (care) care.checked = true;
+      draw();
+    }
 
     // Price point → simulator: what the point sets (type, option, care plan), then scroll to the simulator.
     document.querySelectorAll<HTMLButtonElement>('[data-point]').forEach((b) => b.addEventListener('click', () => {
@@ -200,8 +253,17 @@ const jsonLd = [{
       > li:nth-child(4):last-child { grid-column: span 6; }
     }
 
-    > li { gap: var(--space-4); padding: var(--space-6) var(--space-5) var(--space-6); }
-    > li > :global(.cta) { justify-self: start; }
+    // Each card spans five rows of the list (tag, title, price, items, link) as a subgrid: cards side by side
+    // share those rows, so a wrapping title pushes every price in the row down with it, and the links sit
+    // level at the bottom.
+    > li {
+      grid-row: span 5;
+      grid-template-rows: subgrid;
+      gap: var(--space-4);
+      padding: var(--space-6) var(--space-5) var(--space-6);
+    }
+
+    > li > :global(.cta) { place-self: end start; }
   }
 
   .pp__t { @include text(h3); }
@@ -223,6 +285,7 @@ const jsonLd = [{
 
   .pp__l {
     display: grid;
+    align-content: start; // the row is as tall as the longest list: items keep their spacing
     gap: var(--space-1);
     color: var(--muted);
 
@@ -241,11 +304,40 @@ const jsonLd = [{
   }
 
   .sim__c {
-    display: grid;
-    gap: calc(var(--cell) * 0.8);
+    --gap: calc(var(--cell) * 0.8);
 
-    @include mq(lg) { gap: var(--space-block); }
+    display: grid;
+    gap: var(--gap);
+
+    @include mq(lg) { --gap: var(--space-block); }
   }
+
+  // Folds (pages, options + delivery, care) close by mode (rows 1fr → 0fr, + inert). The space above each
+  // is a margin inside the clip, not the form's gap, so it folds away with it (a grid gap, a negative margin
+  // or a padding would stay).
+  .sim__form { gap: 0; }
+
+  .sim__fold {
+    display: grid;
+    grid-template-rows: 1fr;
+
+    > div { min-height: 0; overflow: clip; }
+
+    // A margin on the first field, inside the clip: padding would hold the box open at 0fr.
+    > div > :global(:first-child) { margin-top: var(--gap); }
+
+    &:global(.is-off) { grid-template-rows: 0fr; opacity: 0; }
+
+    @include motion { transition: grid-template-rows var(--duration-base) var(--ease-move), opacity var(--duration-fast) var(--ease-soft); }
+  }
+
+  // Billed by the day: no free-pages note, no breakdown, no deposit or care in the estimate.
+  .sim:global(.is-days) {
+    [data-free], .sbar, .slg, .kv > div:not(:first-child) { display: none; }
+  }
+
+  // Maintenance alone: the monthly price is the whole estimate, no breakdown.
+  .sim:global(.is-care) :is(.est__more, .est__details) { display: none; }
 
   // Pages: value, range (filled to the thumb), ticks with the included pages hatched.
   .rg {
@@ -327,7 +419,8 @@ const jsonLd = [{
     align-items: baseline;
     gap: var(--space-2);
 
-    > span:last-child { @include text(h2); }
+    > span:not(:global(.est__odo)) { @include text(h2); } // the € sign
+    > small { color: var(--muted); }
 
     :global(.est__odo) {
       font-size: clamp(32px, 5vw, 64px);

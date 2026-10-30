@@ -1,0 +1,175 @@
+---
+// Process: the steps of a project, one line each. Switches (design, copy, care…) fold away the steps that
+// depend on them; the numbering follows (CSS counter on the steps still in). The pricing button opens the
+// simulator with the same options set. Without JS: every step shows, no switches.
+import Button from '@/components/ui/Button.astro';
+import Seam from '@/components/ui/Seam.astro';
+import Headline from '@/components/ui/Headline.astro';
+import Tag from '@/components/ui/Tag.astro';
+import Switch from '@/components/form/Switch.astro';
+import { langOf, localize } from '@/i18n';
+import type { ProcessBlock } from '@/lib/types';
+
+interface Props { block: ProcessBlock }
+const { block } = Astro.props;
+const id = `${block._key}-h`;
+const pricing = localize('/pricing', langOf(Astro.currentLocale));
+---
+<section class="section pc" id={block.anchor} aria-labelledby={id} data-process data-pricing={pricing}>
+  <Seam />
+  <div class="wrap pc__in">
+    <div class="pc__body">
+      <div class="pc__side">
+        <div class="pc__head">
+          {block.label && <Tag>{block.label}</Tag>}
+          <Headline heading={block.heading} id={id} />
+        </div>
+        {block.toggles?.length ? (
+          <fieldset class="pc__tg" data-map={JSON.stringify(Object.fromEntries(block.toggles.map((t) => [t.key, { opt: t.opt, care: t.care }])))}>
+            {block.togglesLabel && <legend class="tag">{block.togglesLabel}</legend>}
+            {block.toggles.map((t) => <Switch name="inc" value={t.key} label={t.label} checked />)}
+          </fieldset>
+        ) : null}
+      </div>
+      <ol role="list" class="pc__steps" data-inview data-start="top 80%">
+        {block.steps.map((s, i) => (
+          <li class="pc__s" data-when={s.when || undefined} style={`--d:${i * 0.06}s`}>
+            <div class="pc__fold"><div class="pc__row"><span class="pc__n" aria-hidden="true"></span><h3 class="pc__t">{s.title}</h3></div></div>
+          </li>
+        ))}
+      </ol>
+    </div>
+    {block.ctas?.length ? (
+      <div class="pc__ctas">{block.ctas.map((c) => <Button href={c.href} variant={c.variant}>{c.label}</Button>)}</div>
+    ) : null}
+  </div>
+</section>
+
+<script>
+  for (const pc of document.querySelectorAll<HTMLElement>('[data-process]')) {
+    const boxes = [...pc.querySelectorAll<HTMLInputElement>('[name="inc"]')];
+    const steps = [...pc.querySelectorAll<HTMLElement>('[data-when]')];
+    const sim = [...pc.querySelectorAll<HTMLAnchorElement>(`a[href^="${pc.dataset.pricing}"]`)];
+    const base = sim.map((a) => a.getAttribute('href')!.split(/[?#]/)[0]);
+    const map = JSON.parse(pc.querySelector<HTMLElement>('[data-map]')?.dataset.map ?? '{}') as Record<string, { opt?: number; care?: number }>;
+
+    const apply = () => {
+      const on = new Set(boxes.filter((b) => b.checked).map((b) => b.value));
+      for (const s of steps) {
+        const off = !on.has(s.dataset.when!);
+        s.classList.toggle('is-off', off);
+        s.inert = off; // folded steps leave the reading order too
+      }
+      // Simulator preset: the options and care plan these switches stand for (indices in the pricing document).
+      const opt: number[] = [];
+      let care = 0;
+      for (const k of on) {
+        const m = map[k];
+        if (m?.opt != null) opt.push(m.opt);
+        if (m?.care != null) care = m.care;
+      }
+      const q = new URLSearchParams({ opt: opt.join(','), care: String(care) }).toString();
+      sim.forEach((a, i) => (a.href = `${base[i]}?${q}#simulator`));
+    };
+    pc.addEventListener('change', apply);
+    apply();
+  }
+</script>
+
+<style lang="scss">
+  .pc__in {
+    display: grid;
+    gap: var(--space-block);
+  }
+
+  // Side and steps share one grid of their own: the sticky side is bounded by it, so it stops level with
+  // the last step (however many there are), never over the buttons below.
+  .pc__body {
+    display: grid;
+    gap: var(--space-block) calc(var(--cell) * 2);
+
+    @include mq(lg) { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); align-items: start; }
+  }
+
+  .pc__side {
+    display: grid;
+    gap: var(--space-block);
+
+    @include mq(lg) { position: sticky; top: calc(var(--header-h) + var(--space-block)); }
+  }
+
+  .pc__head {
+    display: grid;
+    gap: var(--space-head);
+  }
+
+  // Compact switches: the legend, then the switches in one wrapping row (the Switch rows lose their
+  // hairline and padding here; they keep the 44px touch height).
+  .pc__tg {
+    display: none;
+    flex-wrap: wrap;
+    gap: 0 var(--space-6);
+    margin: 0;
+    padding: 0;
+    border: 0;
+
+    legend { float: left; width: 100%; padding-bottom: var(--space-2); color: var(--muted); }
+
+    :global(.op) { padding-block: 0; border: 0; gap: var(--space-3); }
+  }
+
+  :global(.js) .pc__tg { display: flex; }
+
+  .pc__ctas {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-4);
+  }
+
+  // Steps: number · title on hairlines (the offers index look).
+  .pc__steps {
+    counter-reset: step;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .pc__s {
+    display: grid;
+    grid-template-rows: 1fr;
+    counter-increment: step;
+
+    &:global(.is-off) { grid-template-rows: 0fr; counter-increment: none; }
+  }
+
+  .pc__fold { min-height: 0; overflow: clip; }
+
+  .pc__row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr); // mobile: the number takes its own width, the title the rest
+    align-items: baseline;
+    gap: var(--space-3);
+
+    @include mq(md) { grid-template-columns: 4em minmax(0, 1fr); gap: var(--space-4); }
+
+    padding-block: var(--space-4);
+    border-top: 1px solid var(--border);
+    transition: opacity var(--duration-base) var(--ease-soft);
+
+    :global(.is-off) & { opacity: 0; }
+  }
+
+  .pc__n {
+    @include text(mono);
+
+    color: var(--muted);
+
+    &::before { content: counter(step, decimal-leading-zero); }
+  }
+
+  .pc__t { @include text(title); }
+
+  @include motion {
+    .pc__s { transition: grid-template-rows var(--duration-base) var(--ease-move), opacity 1s var(--ease-soft) var(--d), translate 1s var(--ease-soft) var(--d); }
+
+    :global(.js) .pc__steps:not(:global(.is-in)) .pc__s { opacity: 0; translate: 0 12px; }
+  }
+</style>

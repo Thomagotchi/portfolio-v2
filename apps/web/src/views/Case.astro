@@ -26,16 +26,17 @@ const jsonLd = [{
   description: cs.lede, url, creator: { '@id': `${Astro.site}#person` }, ...(year && { dateCreated: year }),
   keywords: cs.meta.find((m) => m.label === t.stack)?.value, dateModified: cs._updatedAt,
 }];
+const solo = !!cs.screen && !cs.mobile;
 ---
 <Base title={cs.title} site={site} seo={cs.seo ?? { description: cs.lede }} jsonLd={jsonLd} path={`/work/${cs.slug}`}>
   <PageHeader label={cs.label} heading={cs.heading} lede={cs.lede}>
     <Cells items={cs.meta} n={[2, 3, cs.meta.length]} class="cs-meta" />
-    {cs.source && <div class="cs-src"><Button href={cs.source.href} variant="secondary" rel="noopener" target="_blank">{`${cs.source.label}\u00a0`}<span aria-hidden="true">↗</span></Button></div>}
+    {cs.source && <div class="cs-src"><Button href={cs.source.href} variant="secondary" rel="noopener" target="_blank">{cs.source.label}</Button></div>}
   </PageHeader>
 
   <div class="cs-cv">
     <Window>
-      <WorkImage image={cs.media?.cover} caption={t.cover} sizes="(min-width: 768px) 92vw, 100vw" class="cs-cv__img" />
+      <WorkImage image={cs.cover} video={cs.coverVideo} caption={t.cover} sizes="(min-width: 768px) 92vw, 100vw" class="cs-cv__img" />
     </Window>
   </div>
 
@@ -46,18 +47,19 @@ const jsonLd = [{
   ) : null}
 
   <Section>
-    <Chapters chapters={cs.chapters}>
+    <Chapters chapters={cs.chapters} team={cs.team}>
       {cs.quote && (
         <figure class="cs-qt">
           <blockquote><p>{cs.quote.text}</p></blockquote>
           <figcaption class="tag">{cs.quote.cite}</figcaption>
         </figure>
       )}
-      <div class="cs-gal">
-        <WorkImage image={cs.media?.wide} caption={t.screen} sizes="(min-width: 1024px) 45vw, (min-width: 768px) 60vw, 100vw" />
-        <WorkImage image={cs.media?.tall} caption={t.mobile} sizes="(min-width: 1024px) 22vw, (min-width: 768px) 30vw, 100vw" />
+      {/* A screen without a mobile shot takes the full width; with neither, both placeholders show. */}
+      <div class:list={['cs-gal', { 'cs-gal--solo': solo }]}>
+        <WorkImage image={cs.screen} video={cs.screenVideo} caption={t.screen} sizes={solo ? '(min-width: 1024px) 68vw, 100vw' : '(min-width: 1024px) 45vw, (min-width: 768px) 60vw, 100vw'} />
+        {!solo && <WorkImage image={cs.mobile} caption={t.mobile} sizes="(min-width: 1024px) 22vw, (min-width: 768px) 30vw, 100vw" />}
       </div>
-      {cs.source && <p class="cs-credit muted">{t.credit} <a href={cs.source.href} rel="noopener" target="_blank">{cs.source.label} <span aria-hidden="true">↗</span></a></p>}
+      {cs.source && <p class="cs-credit muted">{t.credit} <a href={cs.source.href} rel="noopener" target="_blank">{cs.source.label}</a></p>}
     </Chapters>
   </Section>
 
@@ -108,5 +110,12 @@ const jsonLd = [{
 
     > :global(:first-child) { aspect-ratio: 16 / 10; }
     > :global(:last-child) { aspect-ratio: 9 / 12; }
+  }
+
+  .cs-gal--solo {
+    @include mq(md) { grid-template-columns: minmax(0, 1fr); }
+
+    // Full width: 2:1, a desktop screenshot's own ratio (16:10 cropped its edges).
+    > :global(:last-child) { aspect-ratio: 2 / 1; }
   }
 </style>

@@ -1,0 +1,108 @@
+---
+// Accent cells (DA pattern "Accent cells", pricing header background): the page's square cells drawn as
+// hairlines, on the page grid (columns from --cell-x0; rows end on the box's bottom edge, the cut row sits
+// in the top fade). A few cells hold a
+// faint accent tint; the cell under the pointer lights and fades, so moving leaves a trail. Without a pointer
+// (touch, idle) a walker steps from cell to cell right of the text, leaving the same trail.
+// Canvas 2D (scripts/dots canvasLoop): DPR sized, paused off screen, one still frame under reduced motion.
+// Entrance and top fade: global `.scene`. pointer: closest ancestor matching it feeds the pointer.
+// clear: elements in that ancestor (the text) the still tints and the walker stay right of; when they
+// span most of the box (mobile), no still tints and a fainter trail.
+interface Props { pointer?: string; clear?: string }
+const { pointer, clear } = Astro.props;
+---
+<canvas class="scene" data-accent-cells data-pointer={pointer} data-clear={clear} aria-hidden="true"></canvas>
+<span class="ac-probe" aria-hidden="true"></span>
+
+<script>
+  import { canvasLoop } from '@/scripts/dots';
+  import { reduceMotion } from '@/scripts/gsap';
+
+  const FADE = 1400, STEP = 260; // trail life, walker pace (ms)
+  for (const cv of document.querySelectorAll<HTMLCanvasElement>('[data-accent-cells]')) {
+    const host = (cv.dataset.pointer && cv.closest<HTMLElement>(cv.dataset.pointer)) || cv;
+    const probe = cv.parentElement!.querySelector<HTMLElement>('.ac-probe')!;
+    const rm = reduceMotion();
+    const ptr = { in: false };
+    let size = 60, ox = 0, oy = 0, cols = 0, rows = 0, narrow = false, from = 0;
+    let tint = new Map<number, number>(); // cell → alpha (still tints)
+    const lit = new Map<number, number>(); // cell → time it lit (trail)
+    const walk = { c: 0, r: 0, t: 0 };
+    let seed = 7;
+    const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+
+    const layout = (w: number, h: number) => {
+      size = probe.offsetWidth || 60;
+      // First column at or left of the box edge, on the page grid's lines (--cell-x0 + n × --cell).
+      const d = probe.getBoundingClientRect().left - cv.getBoundingClientRect().left;
+      ox = ((d % size) + size) % size - size;
+      cols = Math.ceil((w - ox) / size);
+      oy = (h % size) - size;
+      rows = Math.ceil((h - oy) / size);
+      seed = 7;
+      tint = new Map();
+      // First free column: right of the text (plus a cell).
+      const left = cv.getBoundingClientRect().left;
+      const edge = Math.max(0, ...[...(cv.dataset.clear ? host.querySelectorAll<HTMLElement>(cv.dataset.clear) : [])].map((el) => el.getBoundingClientRect().right - left));
+      from = Math.min(cols - 1, Math.ceil((edge - ox) / size) + 1);
+      narrow = edge > w * 0.7;
+      if (narrow) from = 0;
+      if (!narrow) for (let r = 0; r < rows; r++) for (let c = from; c < cols; c++) if (rnd() > 0.82) tint.set(r * cols + c, 0.08 + Math.floor(rnd() * 3) * 0.06);
+      Object.assign(walk, { c: Math.floor((from + cols) / 2), r: Math.floor(rows * 0.6) });
+    };
+    const light = (x: number, y: number, t: number) => {
+      const c = Math.floor((x - ox) / size), r = Math.floor((y - oy) / size);
+      if (c >= 0 && c < cols && r >= 0 && r < rows) lit.set(r * cols + c, t);
+    };
+
+    let now = 0;
+    const { redraw } = canvasLoop(cv, ({ ctx, w, h, t, css }) => {
+      now = t;
+      ctx.clearRect(0, 0, w, h);
+      const accent = css('--accent');
+      // Walker: one step along a row or a column, kept right of the text.
+      if (!rm && !ptr.in && t - walk.t > STEP) {
+        walk.t = t;
+        const horiz = rnd() > 0.4, d = rnd() > 0.5 ? 1 : -1;
+        if (horiz) walk.c = Math.min(cols - 1, Math.max(from, walk.c + d));
+        else walk.r = Math.min(rows - 1, Math.max(0, walk.r + d));
+        lit.set(walk.r * cols + walk.c, t);
+      }
+      ctx.fillStyle = accent;
+      for (const [i, a] of tint) { ctx.globalAlpha = a; ctx.fillRect(ox + (i % cols) * size, oy + Math.floor(i / cols) * size, size, size); }
+      for (const [i, t0] of lit) {
+        const k = 1 - (t - t0) / FADE;
+        if (k <= 0) { lit.delete(i); continue; }
+        ctx.globalAlpha = (narrow ? 0.22 : 0.45) * k * k;
+        ctx.fillRect(ox + (i % cols) * size, oy + Math.floor(i / cols) * size, size, size);
+      }
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = css('--border');
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let c = 0; c <= cols; c++) { const x = Math.round(ox + c * size) + 0.5; ctx.moveTo(x, 0); ctx.lineTo(x, h); }
+      for (let r = 0; r <= rows; r++) { const y = Math.round(oy + r * size) + 0.5; ctx.moveTo(0, y); ctx.lineTo(w, y); }
+      ctx.stroke();
+    }, layout);
+
+    host.addEventListener('pointermove', (e) => {
+      const b = cv.getBoundingClientRect();
+      ptr.in = true;
+      light(e.clientX - b.left, e.clientY - b.top, rm ? performance.now() : now);
+      if (rm) redraw();
+    }, { passive: true });
+    host.addEventListener('pointerleave', () => { ptr.in = false; });
+  }
+</script>
+
+<style lang="scss">
+  // Measures the page grid in this box: one cell wide, on the first column line.
+  .ac-probe {
+    position: fixed;
+    left: var(--cell-x0);
+    width: var(--cell);
+    height: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+</style>

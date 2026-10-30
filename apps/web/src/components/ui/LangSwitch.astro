@@ -40,8 +40,8 @@ const t = useT(lang);
 </script>
 
 <style lang="scss">
+  // No position: the dropdown hangs from the navbar (its positioned ancestor), right edge on the frame line.
   .lsw {
-    position: relative;
     align-self: stretch;
     display: flex;
   }
@@ -49,6 +49,7 @@ const t = useT(lang);
   .lsw__btn {
     display: none;
     align-items: center;
+    justify-content: flex-end; // the "+" ends on the bar's padding edge, mirroring the mark on the left
     gap: 6px;
     min-width: 44px;
     min-height: 44px;
@@ -84,14 +85,14 @@ const t = useT(lang);
   .lsw__code { min-width: 2ch; }
 
   // With JS (.js is set before the first paint: no shift when the script arrives): a button, the list
-  // drops under the bar from its bottom border, right-aligned.
+  // drops under the bar from its bottom border, its right edge on the frame line (the hero canvas edge).
   :global(.js) .lsw {
     .lsw__btn { display: inline-flex; }
 
     .lsw__list {
       position: absolute;
       top: calc(100% + 1px);
-      right: calc(-1 * var(--space-2));
+      right: var(--frame); // the hero canvas edge
       z-index: var(--layer-dropdown);
       display: grid;
       min-width: 12rem;

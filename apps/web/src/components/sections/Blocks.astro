@@ -3,15 +3,15 @@
 import type { Block } from '@/lib/types';
 import Hero from './Hero.astro';
 import Kpi from './Kpi.astro';
-import BuiltWith from './BuiltWith.astro';
 import Statement from './Statement.astro';
 import Stack from './Stack.astro';
 import Offers from './Offers.astro';
 import Work from './Work.astro';
 import Faq from './Faq.astro';
+import Process from './Process.astro';
 
 interface Props { blocks: Block[] }
-const map = { hero: Hero, kpi: Kpi, builtWith: BuiltWith, statement: Statement, stack: Stack, offers: Offers, work: Work, faq: Faq } as const;
+const map = { hero: Hero, kpi: Kpi, statement: Statement, stack: Stack, offers: Offers, work: Work, faq: Faq, process: Process } as const;
 ---
 {Astro.props.blocks.map((block, i) => {
   // Each component accepts its own block type; the map can't express that pairing.

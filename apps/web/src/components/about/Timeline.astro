@@ -1,7 +1,8 @@
 ---
-// Timeline: a sticky year (6 cells, md+) rolls on a live odometer while the entries scroll; the hairline
-// fills with the scroll (to the end of the list) with the pixel at its tip; an entry lights when its top crosses 55% of
-// the viewport. Mobile: the big year is hidden, each entry carries its own (always in the markup).
+// Timeline: a sticky year (3 cells on md, 4 on lg) rolls on a live odometer while the entries scroll; the hairline
+// is scrubbed by the scroll (ScrollTrigger progress, transforms only, no CSS transition: Lenis already smooths
+// it, a transition on top made it lag and stagger) from the list top at the middle of the viewport to the list end
+// at the middle, with the pixel at its tip; an entry lights when the tip reaches it. Mobile: the big year is hidden, each entry carries its own (always in the markup).
 import Odometer from '@/components/ui/Odometer.astro';
 import type { AboutPage } from '@/lib/types';
 
@@ -15,6 +16,7 @@ const { entries } = Astro.props;
   </div>
   <div class="tl__list">
     <b aria-hidden="true"></b>
+    <i aria-hidden="true"></i>
     <ol role="list">
     {entries.map((e, i) => (
       <li class:list={['tl__i', { 'is-on': i === 0 }]} data-year={e.year} data-title={e.title}>
@@ -37,24 +39,26 @@ const { entries } = Astro.props;
     const list = tl.querySelector<HTMLElement>('.tl__list')!;
     const items = [...list.querySelectorAll<HTMLElement>('.tl__i')];
     const fill = list.querySelector<HTMLElement>(':scope > b')!;
+    const tip = list.querySelector<HTMLElement>(':scope > i')!;
     const odo = tl.querySelector<HTMLElement>('.tl__odo')!;
     const title = tl.querySelector<HTMLElement>('[data-title]')!;
     let cur = -1;
-    const update = () => {
-      const line = innerHeight * 0.55;
+    const update = (p: number) => {
+      // Layout offsets, not rects: no layout read per frame beyond the cached heights.
+      const h = list.offsetHeight;
+      const y = Math.max(8, p * h);
+      fill.style.transform = `scaleY(${y / h})`;
+      tip.style.transform = `translateY(${y}px)`;
       let c = 0;
-      items.forEach((it, i) => { const on = it.getBoundingClientRect().top < line; it.classList.toggle('is-on', on || i === 0); if (on) c = i; });
+      items.forEach((it, i) => { const on = it.offsetTop <= y; it.classList.toggle('is-on', on || i === 0); if (on) c = i; });
       const last = items[c];
-      // The fill follows the 55% line all the way to the end of the list (it used to stop mid last entry).
-      const tip = Math.min(list.offsetHeight, Math.max(8, line - list.getBoundingClientRect().top));
-      fill.style.setProperty('--h', `${tip}px`);
       if (c === cur) return;
       cur = c;
       setOdometer(odo, last.dataset.year!);
       decode(title, last.dataset.title!, 500);
     };
     if (reduceMotion()) items.forEach((it) => it.classList.add('is-on'));
-    ScrollTrigger.create({ trigger: list, start: 'top bottom', end: 'bottom top', onUpdate: update, onRefresh: update });
+    ScrollTrigger.create({ trigger: list, start: 'top 50%', end: 'bottom 50%', onUpdate: (s) => update(s.progress), onRefresh: (s) => update(s.progress) });
   }
 </script>
 
@@ -64,9 +68,9 @@ const { entries } = Astro.props;
     grid-template-columns: minmax(0, 1fr);
     gap: var(--cell);
 
-    @include mq(md) { grid-template-columns: calc(var(--cell) * 5) minmax(0, 1fr); }
+    @include mq(md) { grid-template-columns: calc(var(--cell) * 3) minmax(0, 1fr); }
 
-    @include mq(lg) { grid-template-columns: calc(var(--cell) * 6) minmax(0, 1fr); }
+    @include mq(lg) { grid-template-columns: calc(var(--cell) * 4) minmax(0, 1fr); }
   }
 
   .tl__y {
@@ -79,15 +83,15 @@ const { entries } = Astro.props;
     @include mq(md) { display: grid; }
 
     :global(.tl__odo) {
-      font-size: clamp(56px, 9vw, 120px);
+      font-size: clamp(48px, 6vw, 88px); // fits the 3-4 cell column
       letter-spacing: -0.04em;
     }
   }
 
-  // The line: 1px hairline on the left; b = the fill (its height) with the pixel at its tip (::after).
+  // The line: 1px hairline on the left; b = the fill (scaleY from the top), i = the pixel at its tip.
   .tl__list {
     position: relative;
-    padding-left: calc(var(--cell) * 0.75);
+    padding-left: var(--cell);
 
     > ol { display: grid; }
 
@@ -95,25 +99,26 @@ const { entries } = Astro.props;
 
     > b {
       position: absolute;
-      top: 0;
-      left: 0;
+      inset: 0 auto 0 0;
       width: 1px;
-      height: var(--h, 8px);
       background: var(--text);
-      transition: height 0.4s var(--ease-soft);
-
-      &::after { content: ''; position: absolute; bottom: -4px; left: -3px; width: 7px; height: 7px; background: var(--accent); }
+      transform: scaleY(0);
+      transform-origin: top;
     }
+
+    > i { position: absolute; top: -4px; left: -3px; width: 7px; height: 7px; background: var(--accent); }
   }
 
+  // Entry: year, title, text, tags, with room between them (the title sits closer to its year than to the text).
   .tl__i {
     display: grid;
-    gap: var(--space-3);
-    padding-bottom: calc(var(--cell) * 1.5);
+    gap: var(--space-5);
+    padding-bottom: calc(var(--cell) * 2);
 
     &:last-child { padding-bottom: 0; } // the line ends with the last entry
 
-    > p { max-width: 48ch; color: var(--muted); }
+    > h3 { margin-top: calc(var(--space-2) - var(--space-5)); }
+    > p { max-width: 64ch; color: var(--muted); }
     .mono { color: var(--text); }
   }
 

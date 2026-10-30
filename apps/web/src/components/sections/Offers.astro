@@ -58,15 +58,15 @@ const { block } = Astro.props;
 
   .ix {
     display: grid;
-    grid-template-columns: 4em 1fr;
-    gap: var(--space-2) var(--space-4);
+    grid-template-columns: auto minmax(0, 1fr); // mobile: the number takes its own width, the text the rest
+    gap: var(--space-2) var(--space-3);
     align-items: baseline;
     padding-block: var(--space-card);
     padding-left: var(--tx);
     color: var(--text);
     text-decoration: none;
 
-    @include mq(md) { grid-template-columns: 4em 1fr auto; }
+    @include mq(md) { grid-template-columns: 4em 1fr auto; gap: var(--space-2) var(--space-4); }
   }
 
   .ix__n { @include text(mono); color: var(--muted); }

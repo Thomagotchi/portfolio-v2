@@ -1,11 +1,12 @@
 ---
 // Chips: native checkboxes (multi) or radios styled as toggles; the checked one takes the pixel on its
 // corner. Native inputs: keyboard (Space, arrows in a radio group), form data and no-JS for free.
-// cols: equal columns from md (pricing); without it chips wrap.
-interface Props { name: string; options: { label: string; note?: string; value?: string }[]; multi?: boolean; checked?: string[]; cols?: number; describedby?: string }
-const { name, options, multi = false, checked = [], cols, describedby } = Astro.props;
+// cols: equal columns from md (pricing); fill: as many ≥ 11rem columns as fit, every row as tall as the
+// tallest (a short second row matches the first); without either they wrap at their own width.
+interface Props { name: string; options: { label: string; note?: string; value?: string }[]; multi?: boolean; checked?: string[]; cols?: number; fill?: boolean; describedby?: string }
+const { name, options, multi = false, checked = [], cols, fill, describedby } = Astro.props;
 ---
-<div class:list={['chips', { 'chips--cols': cols }]} style={cols ? `--n:${cols}` : undefined} data-chips={name}>
+<div class:list={['chips', { 'chips--cols': cols, 'chips--fill': fill }]} style={cols ? `--n:${cols}` : undefined} data-chips={name}>
   {options.map((o) => {
     const v = o.value ?? o.label;
     return (
@@ -29,6 +30,12 @@ const { name, options, multi = false, checked = [], cols, describedby } = Astro.
     grid-template-columns: minmax(0, 1fr);
 
     @include mq(md) { grid-template-columns: repeat(var(--n), minmax(0, 1fr)); }
+  }
+
+  .chips--fill {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+    grid-auto-rows: 1fr;
   }
 
   .chip {

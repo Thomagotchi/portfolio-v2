@@ -7,7 +7,7 @@ Portfolio site built on the astro-sanity-starter stack: Astro 7 + SCSS + GSAP + 
 nvm use                      # Node 24 (the repo refuses older Node)
 corepack enable              # pnpm only: npm cannot install a pnpm workspace
 pnpm i
-cp .env.example .env         # empty = demo content from apps/web/src/lib/fallback.ts
+cp .env.example .env         # Sanity project id (required: all content lives in Sanity)
 cp <DA>/out/<slug>.tokens.json packages/tokens/tokens.json
 pnpm dev                     # site on :4321 (tokens rebuild on change)
 pnpm dev:studio              # Sanity Studio on :3333 (needs SANITY_STUDIO_PROJECT_ID)
@@ -21,7 +21,7 @@ Set `SITE` in `apps/web/src/config.ts`.
 | `SMOOTH_SCROLL` | Lenis on/off. Off = never downloaded. |
 | `SITE.theme` | `dark` / `light` / `auto`, from the DA's semantic tokens. |
 | `ALLOW_AI_CRAWLERS` | robots.txt rules for GPTBot, ClaudeBot, PerplexityBot… |
-| Hero `scene` | per-block toggle in Sanity (or fallback.ts). |
+| Hero `scene` | per-block toggle in Sanity. |
 
 ## Commands
 | | |
