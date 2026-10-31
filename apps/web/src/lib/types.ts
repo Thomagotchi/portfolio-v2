@@ -1,9 +1,10 @@
 // Mirrors apps/studio/schemas. Replace with `sanity typegen generate` output once the project is live.
 
 export type Link = { label: string; href: string };
-export type Cta = Link & { variant?: 'primary' | 'accent' | 'secondary' | 'surface' | 'link' };
+export type Cta = Link & { variant?: 'accent' | 'surface' | 'link' };
 export type Seo = { title?: string; description?: string; image?: SanityImage; noindex?: boolean };
 export type SanityImage = { asset: { _ref: string }; alt?: string };
+export type Shot = SanityImage & { _key: string; caption?: string };
 /** Heading in three parts: the middle one is muted (the DA's emphasis). */
 export type Headline = { lead: string; muted?: string; tail?: string };
 
@@ -42,6 +43,8 @@ export type CaseStudy = {
   cover?: SanityImage; screen?: SanityImage; mobile?: SanityImage;
   /** Optional videos over the cover / screen slots (the image is their poster). URL resolved in the query. */
   coverVideo?: string; screenVideo?: string;
+  /** One after each chapter, the rest in a grid at the end. */
+  gallery?: Shot[];
   team?: TeamLine[];
   next?: { title: string; slug: string; summary: string };
   /** The original case study (agency work): linked from the header and the end of the page. */

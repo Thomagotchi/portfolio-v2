@@ -1,12 +1,13 @@
 ---
-// DA CTAs. primary: label roll · accent: slash wipe · secondary: corner lock · surface: perimeter draw · link: underline draw.
+// Two CTAs only: accent (slash wipe, the main action) and surface (perimeter draw, everything else);
+// link (underline draw) is for text links (socials, back to top), not for calls to action.
 // Sizes from --cta-*; lgSize applies from the lg breakpoint (hero: md → lg). Opaque fills only, radius 0.
 import type { Cta } from '@/lib/types';
 import { langOf, localize } from '@/i18n';
 
 type Size = 'sm' | 'md' | 'lg';
 interface Props { href?: string; variant?: Cta['variant']; size?: Size; lgSize?: Size; class?: string; [k: string]: unknown }
-const { href: raw, variant = 'primary', size = 'md', lgSize, class: cls, ...rest } = Astro.props;
+const { href: raw, variant = 'surface', size = 'md', lgSize, class: cls, ...rest } = Astro.props;
 // Canonical internal paths become the current locale's URL (/pricing → /tarifs or /en/pricing).
 const href = raw && localize(raw, langOf(Astro.currentLocale));
 const T = href ? 'a' : 'button';
@@ -14,9 +15,7 @@ const label = await Astro.slots.render('default');
 const arrow = '<svg class="arw" viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 10 10 2M4 2h6v6"/></svg>';
 ---
 <T class:list={['cta', `cta--${variant}`, `cta--${size}`, lgSize && `cta--lg-${lgSize}`, cls]} href={href} type={href ? undefined : 'button'} {...rest}>
-  {variant === 'primary' && <span class="roll"><span set:html={label} /><span aria-hidden="true" set:html={label} /></span>}
   {variant === 'accent' && <><span class="t" set:html={label} /><span class="aw" aria-hidden="true" set:html={arrow + arrow} /></>}
-  {variant === 'secondary' && <span set:html={label} />}
   {variant === 'surface' && <><span set:html={label} /><Fragment set:html={arrow} /><span class="pm" aria-hidden="true"><i></i><i></i><i></i><i></i></span></>}
   {variant === 'link' && <span set:html={label} />}
 </T>
@@ -61,48 +60,6 @@ const arrow = '<svg class="arw" viewBox="0 0 12 12" width="12" height="12" fill=
 
   :global(.arw) { flex: none; }
 
-  // Corner brackets shared by primary (outer) and secondary (inner).
-  .cta--primary, .cta--secondary {
-    &::before, &::after {
-      content: '';
-      position: absolute;
-      width: 10px;
-      height: 10px;
-      border: 0 solid var(--text);
-      opacity: 0;
-      transition: translate 0.55s var(--ease-move), opacity 0.3s var(--ease-soft);
-    }
-
-    &::before { border-top-width: 2px; border-left-width: 2px; translate: -6px -6px; }
-    &::after { border-bottom-width: 2px; border-right-width: 2px; translate: 6px 6px; }
-
-    &:is(:hover, :focus-visible)::before, &:is(:hover, :focus-visible)::after { opacity: 1; translate: 0; }
-  }
-
-  .cta--primary {
-    background: var(--action);
-    color: var(--on-action);
-    border-color: var(--action);
-
-    &::before { left: -7px; top: -7px; }
-    &::after { right: -7px; bottom: -7px; }
-  }
-
-  .roll {
-    display: grid;
-    overflow: clip;
-    overflow-clip-margin: 3px;
-
-    > * { grid-area: 1 / 1; transition: translate 0.65s var(--ease-move); }
-
-    // The copy waits below, hidden (not just clipped: contrast checkers can't see a clip and test it on
-    // whatever lies behind). It shows at once on hover and hides after its roll out.
-    > :last-child { translate: 0 calc(100% + 12px); visibility: hidden; transition: translate 0.65s var(--ease-move), visibility 0s 0.65s; }
-
-    .cta:is(:hover, :focus-visible) & > :first-child { translate: 0 calc(-100% - 12px); }
-    .cta:is(:hover, :focus-visible) & > :last-child { translate: 0; visibility: visible; transition-delay: 0s; }
-  }
-
   .cta--accent {
     overflow: hidden;
     background: var(--accent);
@@ -137,18 +94,6 @@ const arrow = '<svg class="arw" viewBox="0 0 12 12" width="12" height="12" fill=
 
     .cta:is(:hover, :focus-visible) & :global(svg:first-child) { translate: 14px -14px; }
     .cta:is(:hover, :focus-visible) & :global(svg + svg) { translate: 0; }
-  }
-
-  .cta--secondary {
-    background: var(--bg);
-    color: var(--text);
-    border-color: color-mix(in srgb, var(--text) 38%, var(--bg));
-    font-weight: 500;
-    transition: border-color 0.45s var(--ease-soft);
-
-    &::before { left: 3px; top: 3px; }
-    &::after { right: 3px; bottom: 3px; }
-    &:is(:hover, :focus-visible) { border-color: var(--text); }
   }
 
   .cta--surface {

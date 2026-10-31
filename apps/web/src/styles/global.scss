@@ -120,6 +120,35 @@ main { flex: 1; position: relative; }
   }
 }
 
+// Card light (grids with data-light): a faint cone from the top edge of the hovered or focused cell, behind
+// its content; it fades in and out, it does not follow the pointer.
+[data-light] > * {
+  position: relative;
+  isolation: isolate;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+
+    // A wide cone with eased stops (no hard edges) under a soft glow, both fading out down the cell.
+    --l: color-mix(in srgb, var(--text) 6%, transparent);
+    --l2: color-mix(in srgb, var(--text) 3%, transparent);
+    --l3: color-mix(in srgb, var(--text) 1%, transparent);
+
+    background:
+      radial-gradient(70% 55% at 50% 0, var(--l2), transparent),
+      conic-gradient(from 115deg at 50% -30%, transparent, var(--l3) 30deg, var(--l2) 48deg, var(--l) 65deg, var(--l2) 82deg, var(--l3) 100deg, transparent 130deg);
+    mask-image: linear-gradient(to bottom, var(--bg), transparent 95%);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--duration-slow) var(--ease-soft);
+  }
+
+  &:is(:hover, :focus-within)::before { opacity: 1; }
+}
+
 // Cursor brackets (scripts/brackets.ts): created by the script, so styled here. The native cursor hides only
 // over a grid that has them (fine pointers), replaced by the 4px accent dot.
 .has-brk.is-brk { cursor: none; }

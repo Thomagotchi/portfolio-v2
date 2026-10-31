@@ -26,6 +26,7 @@ const to = (href: string) => localize(href, lang);
           </li>
         ))}
       </ul>
+      <span class="nav__ind" aria-hidden="true" data-ind></span>
     </nav>
     <LangSwitch alt={alt} class="nav__lang" />
     <button class="nav__menu" type="button" aria-expanded="false" aria-controls="nav-sheet" data-menu data-open={t.menu} data-close={t.close}>
@@ -76,6 +77,34 @@ const to = (href: string) => localize(href, lang);
     hide: () => drop.classList.remove('is-open'),
   });
   nav.querySelectorAll('a.nav__link, .nav__home, [data-lsw]').forEach((a) => a.addEventListener('pointerenter', panels.close));
+
+  // One underline for the whole bar: it grows from the left under the first link reached, then slides to
+  // the next one hovered or focused, and rests under an open panel's trigger; it shrinks away when none.
+  const ind = nav.querySelector<HTMLElement>('[data-ind]')!;
+  const links = [...nav.querySelectorAll<HTMLElement>('.nav__link')];
+  let hover: HTMLElement | null = null;
+  const sync = () => {
+    const to = hover ?? links.find((l) => l === document.activeElement && l.matches(':focus-visible')) ?? links.find((l) => l.getAttribute('aria-expanded') === 'true');
+    if (!to) { ind.classList.remove('is-on'); return; }
+    const box = { x: to.offsetLeft, w: to.offsetWidth };
+    if (!ind.classList.contains('is-on')) {
+      ind.classList.add('is-still'); // the first show places it at once, then grows
+      void ind.offsetWidth;
+    }
+    ind.style.setProperty('--x', `${box.x}px`);
+    ind.style.setProperty('--w', `${box.w}px`);
+    void ind.offsetWidth;
+    ind.classList.remove('is-still');
+    ind.classList.add('is-on');
+  };
+  // Hover holds across the gaps between links: it ends when the pointer leaves the list.
+  nav.querySelector('.nav__links ul')!.addEventListener('pointerleave', () => { hover = null; sync(); });
+  links.forEach((l) => {
+    l.addEventListener('pointerenter', () => { hover = l; sync(); });
+    l.addEventListener('focus', sync);
+    l.addEventListener('blur', () => requestAnimationFrame(sync));
+  });
+  new MutationObserver(sync).observe(nav, { subtree: true, attributeFilter: ['aria-expanded'] });
   drop.addEventListener('click', (e) => { if ((e.target as Element).closest('a')) panels.close(); });
 
   // The sheet (data-lenis-prevent: Lenis cancels every scroll while stopped, the sheet's own included).
@@ -177,22 +206,28 @@ const to = (href: string) => localize(href, lang);
     text-decoration: none;
     transition: color var(--duration-fast);
 
-    &::after {
-      content: '';
-      position: absolute;
-      inset: auto 0 -1px;
-      height: 1px;
-      background: var(--text);
-      scale: 0 1;
-      transform-origin: left;
-      transition: scale 0.45s var(--ease-soft);
-    }
+    &:is(:hover, :focus-visible, [aria-expanded='true']) { color: var(--text); }
+  }
 
-    &:is(:hover, :focus-visible, [aria-expanded='true']) {
-      color: var(--text);
+  // The shared underline (script above), on the bar's bottom border. Without JS: none, the colour carries it.
+  .nav__links { position: relative; }
 
-      &::after { scale: 1; }
-    }
+  .nav__ind {
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    width: var(--w, 0);
+    height: 1px;
+    background: var(--text);
+    translate: var(--x, 0) 0;
+    scale: 0 1;
+    transform-origin: left;
+    transition: translate 0.5s var(--ease-move), width 0.5s var(--ease-move), scale 0.45s var(--ease-soft);
+
+    &:global(.is-on) { scale: 1; }
+    &:global(.is-still) { transition: none; }
+
+    @media (prefers-reduced-motion: reduce) { transition: none; }
   }
 
   .nav__drop {

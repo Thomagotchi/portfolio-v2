@@ -1,4 +1,4 @@
-// WebGL budget on a throttled CPU (4×, like Lighthouse mobile). Run after every scene change.
+// Hero scene budget on a throttled CPU (4×, like Lighthouse mobile). Run after every scene change.
 import { test, expect, chromium } from '@playwright/test';
 
 test('hero scene stays within budget', async () => {
@@ -13,9 +13,9 @@ test('hero scene stays within budget', async () => {
   });
   await page.goto('/');
 
-  const ready = await page.waitForSelector('[data-terrain].is-ready', { timeout: 10_000 }).then(() => true, () => false);
+  const ready = await page.waitForSelector('[data-hero] [data-code].is-ready', { timeout: 10_000 }).then(() => true, () => false);
   if (!ready) await browser.close();
-  test.skip(!ready, 'No GPU here: the hero shows its fallback, nothing to measure.');
+  test.skip(!ready, 'The hero scene did not start: nothing to measure.');
 
   const frames = await page.evaluate(() => new Promise<number[]>((done) => {
     const out: number[] = [];

@@ -47,7 +47,7 @@ const jsonLd = [{
   </PageHeader>
 
   <Section label={t.points}>
-    <ul role="list" class="cells pp" data-brackets style={`--n:1;--n-md:2;--n-lg:6`}>
+    <ul role="list" class="cells pp" data-brackets data-light style={`--n:1;--n-md:2;--n-lg:6`}>
       {pr.points.map((p, i) => (
         <li>
           <span class="tag">{p.label}</span>
@@ -55,8 +55,8 @@ const jsonLd = [{
           <p class="pp__v">{!p.exact && <span class="muted">{t.from}</span>} {$(p.from)}{p.per && <small>{p.per}</small>}</p>
           <ul role="list" class="pp__l">{p.items.map((x) => <li>{x}</li>)}</ul>
           {p.sim
-            ? <Button variant="link" data-point={i} aria-controls="simulator">{t.useSim}</Button>
-            : <Button variant="link" href={send(new URLSearchParams({ type: ct.types[3] ?? '' }).toString())}>{t.ask}</Button>}
+            ? <Button variant="surface" size="sm" data-point={i} aria-controls="simulator">{t.useSim}</Button>
+            : <Button variant="surface" size="sm" href={send(new URLSearchParams({ type: ct.types[3] ?? '' }).toString())}>{t.ask}</Button>}
         </li>
       ))}
     </ul>

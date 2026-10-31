@@ -39,6 +39,13 @@ export default defineType({
     image('screen', 'Screen', 'After the chapters, 16:10. Also the poster of the screen video.'),
     video('screenVideo', 'Screen video', 'Optional: plays in place of the screen image.'),
     image('mobile', 'Mobile', 'Beside the screen, 3:4.'),
+    defineField({
+      name: 'gallery', type: 'array', description: 'In order: one image after each chapter (full width, its own ratio), the rest in a two-column grid after the screen. Landscape works best.',
+      of: [defineArrayMember({ type: 'image', options: { hotspot: true }, fields: [
+        defineField({ name: 'alt', title: 'Alt text', type: 'string', validation: (r) => r.required() }),
+        defineField({ name: 'caption', type: 'string', description: 'Optional, under the image.' }),
+      ] })],
+    }),
     defineField({ name: 'next', title: 'Next project', type: 'reference', to: [{ type: 'caseStudy' }] }),
     seo,
   ],

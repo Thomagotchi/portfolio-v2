@@ -85,9 +85,10 @@ const { block } = Astro.props;
       grid-auto-rows: round(up, max(calc(var(--cell) * 3), 9.5rem), var(--cell));
     }
 
+    // Figure at the top, caption on the bottom edge: captions line up across the row whatever their length.
     li {
       display: grid;
-      align-content: start;
+      align-content: space-between;
       gap: var(--space-2);
       padding: var(--space-3);
       overflow-wrap: anywhere;

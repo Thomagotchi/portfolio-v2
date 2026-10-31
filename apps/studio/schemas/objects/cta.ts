@@ -8,9 +8,9 @@ export default defineType({
     defineField({ name: 'label', type: 'string', validation: (r) => r.required() }),
     defineField({ name: 'href', type: 'string', validation: (r) => r.required() }),
     defineField({
-      name: 'variant', type: 'string', initialValue: 'primary',
-      description: 'Primary once per view; accent on offers and footers, never twice in a view.',
-      options: { list: ['primary', 'accent', 'secondary', 'surface', 'link'], layout: 'radio', direction: 'horizontal' },
+      name: 'variant', type: 'string', initialValue: 'surface',
+      description: 'Accent: the main action, once per group. Surface: every other button.',
+      options: { list: ['accent', 'surface'], layout: 'radio', direction: 'horizontal' },
     }),
   ],
 });

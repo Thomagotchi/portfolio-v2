@@ -16,5 +16,8 @@ const { as: T = 'p', class: cls } = Astro.props;
   @include motion {
     .sq { transition: scale var(--duration-base) var(--ease-move); }
     :global(.js) .stag:not(:global(.is-in)) .sq { scale: 0; }
+
+    // Hidden (still read out) until it decodes: never shown plain first, then scrambled.
+    :global(.js) .stag:not(:global(.is-in)) [data-decode] { color: transparent; }
   }
 </style>

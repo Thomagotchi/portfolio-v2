@@ -1,8 +1,9 @@
 ---
-// Window open (ui/Window, at first paint) into a 1px frame on the frame line, the text rises out of a mask, the dot terrain fades in inside the frame.
-// All CSS at first paint: JS only loads the terrain. The hero is exactly one viewport; the title scales with
-// width and height so the block always fits inside the frame. The whole section feeds the terrain's pointer.
-// Slots (inner pages, e.g. About): "scene" replaces the terrain inside the window; the default slot rises
+// Window open (ui/Window, at first paint) into a 1px frame on the frame line, the text rises out of a mask, then the
+// code field (scripts/codefield: this file's own source, scrolling down, lit by the pointer) fades in beside the text.
+// All CSS at first paint: JS only loads the scene. The hero is exactly one viewport; the title scales with
+// width and height so the block always fits inside the frame. The whole section feeds the scene's pointer.
+// Slots (inner pages, e.g. About): "scene" replaces the code field inside the window; the default slot rises
 // after the text (meta cells).
 import Button from '@/components/ui/Button.astro';
 import Headline from '@/components/ui/Headline.astro';
@@ -16,7 +17,7 @@ const { block, first } = Astro.props; // label: a wrap never starts a line with 
   <Window mode="load">
     {Astro.slots.has('scene')
       ? <div class="hero__field"><slot name="scene" /></div>
-      : block.scene && <div class="hero__field" data-terrain aria-hidden="true"></div>}
+      : block.scene && <div class="hero__field" data-code="side" aria-hidden="true"></div>}
   </Window>
   <div class="wrap hero__content">
     {block.label && <div class="rise"><p class="tag">{block.label.replaceAll(' · ', '\u00a0· ')}</p></div>}
@@ -32,15 +33,15 @@ const { block, first } = Astro.props; // label: a wrap never starts a line with 
 </section>
 
 <script>
-  import { mountTerrain } from '@/scripts/three/load';
+  import { mountCode } from '@/scripts/three/load';
 
-  const host = document.querySelector<HTMLElement>('[data-hero] [data-terrain]');
-  // Fades in 2.6 s after navigation (the window has opened), whatever time the script arrives.
+  const host = document.querySelector<HTMLElement>('[data-hero] [data-code]');
+  // Fades in 1.8 s after navigation (the window has opened), whatever time the script arrives.
   if (host) {
-    mountTerrain(host, {
-      density: [[100, 76], [120, 72], [180, 96]],
-      pointer: host.closest<HTMLElement>('[data-hero]')!,
-      delay: Math.max(0, 2600 - performance.now()),
+    const hero = host.closest<HTMLElement>('[data-hero]')!;
+    mountCode(host, {
+      pointer: hero, text: hero.querySelector('.hero__content'), fill: host.dataset.code === 'full' ? 'full' : 'side',
+      delay: Math.max(0, 1800 - performance.now()),
     });
   }
 </script>
@@ -64,8 +65,8 @@ const { block, first } = Astro.props; // label: a wrap never starts a line with 
     position: absolute;
     inset: 0;
 
-    // Terrain (Three.js): fades in once the scene is ready. A slotted scene brings its own entrance.
-    &[data-terrain] :global(canvas) {
+    // Code field: fades in once ready. A slotted scene brings its own entrance.
+    &[data-code] :global(canvas) {
       display: block;
       width: 100%;
       height: 100%;
@@ -73,7 +74,7 @@ const { block, first } = Astro.props; // label: a wrap never starts a line with 
       transition: opacity var(--duration-fade-in) var(--ease-soft) var(--delay, 0s);
     }
 
-    &[data-terrain]:global(.is-ready canvas) { opacity: 0.85; }
+    &[data-code]:global(.is-ready canvas) { opacity: 1; }
   }
 
   .hero__content {
@@ -83,10 +84,10 @@ const { block, first } = Astro.props; // label: a wrap never starts a line with 
     gap: var(--space-head);
     padding-inline: max(calc(var(--margin) + var(--tx)), calc(var(--frame) + var(--space-5))) max(var(--margin), calc(var(--frame) + var(--space-5)));
 
-    // Display size: the h1 token's range, pushed up to fill wide screens, held down on short ones.
+    // Display size: the h1 token's range, held down so the code field gets the room (and on short screens).
     :global(.hero__title) {
       max-width: 10.5em;
-      font-size: clamp(38px, min(7vw, 10.5svh), 100px);
+      font-size: clamp(34px, min(5.2vw, 8svh), 76px);
     }
   }
 

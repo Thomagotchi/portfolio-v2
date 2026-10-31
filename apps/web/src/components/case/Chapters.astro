@@ -3,18 +3,21 @@
 // reaching the middle of the screen to the end of the content (the slot included) reaching it; the pixel
 // rides its tip. The chapter whose top passed the middle is current (its label lights); labels scroll to
 // their chapter. Under lg the index is hidden and a 2px bar under the navbar shows the same progress. The slot (quote, gallery)
-// follows the chapters in the same column.
+// follows the chapters in the same column. shots: one image after each chapter but the last (its own ratio; a 16:10
+// placeholder when the slot is empty),
+// opening from a slight inset as it scrolls in.
 import { PortableText } from 'astro-portabletext';
 import Figure from './Figure.astro';
 import Headline from '@/components/ui/Headline.astro';
 import Tag from '@/components/ui/Tag.astro';
-import type { Chapter, TeamLine } from '@/lib/types';
+import WorkImage from '@/components/ui/WorkImage.astro';
+import type { Chapter, Shot, TeamLine } from '@/lib/types';
 import { byRole } from '@/lib/roles';
 
 import { TAG, langOf, useT } from '@/i18n';
 
-interface Props { chapters: Chapter[]; team?: TeamLine[] }
-const { chapters, team = [] } = Astro.props;
+interface Props { chapters: Chapter[]; team?: TeamLine[]; shots?: (Shot | undefined)[] }
+const { chapters, team = [], shots = [] } = Astro.props;
 const lang = langOf(Astro.currentLocale);
 const t = useT(lang);
 const and = new Intl.ListFormat(TAG[lang], { type: 'conjunction' }); // en-GB: no serial comma
@@ -31,7 +34,7 @@ const and = new Intl.ListFormat(TAG[lang], { type: 'conjunction' }); // en-GB: n
   </nav>
   <div class="chs__bar" aria-hidden="true"><i></i></div>
   <div class="chs__body">
-    {chapters.map((c, i) => (
+    {chapters.map((c, i) => (<>
       <article class="ch" id={`ch-${i + 1}`} aria-labelledby={`ch-${i + 1}-h`}>
         <Tag>{c.label}</Tag>
         <Headline heading={c.heading} id={`ch-${i + 1}-h`} />
@@ -42,7 +45,13 @@ const and = new Intl.ListFormat(TAG[lang], { type: 'conjunction' }); // en-GB: n
           </dl>
         ) : null}
       </article>
-    ))}
+      {i < chapters.length - 1 && i < shots.length && (
+        <figure class:list={['ch__shot', { 'ch__shot--ph': !shots[i] }]} data-inview>
+          <WorkImage image={shots[i]} caption={shots[i]?.alt ?? t.case.shot} sizes="(min-width: 1024px) 68vw, 100vw" />
+          {shots[i]?.caption && <figcaption class="small muted">{shots[i]?.caption}</figcaption>}
+        </figure>
+      )}
+    </>))}
     <slot />
   </div>
 </div>
@@ -194,6 +203,26 @@ const and = new Intl.ListFormat(TAG[lang], { type: 'conjunction' }); // en-GB: n
 
     > :global(p) { max-width: 56ch; color: var(--muted); }
     :global(p a) { color: var(--text); text-decoration: underline; text-underline-offset: 0.2em; }
+  }
+
+  .ch__shot {
+    display: grid;
+    gap: var(--space-3);
+    margin: 0;
+
+    > :global(:first-child) { overflow: hidden; }
+  }
+
+  .ch__shot--ph > :global(:first-child) { aspect-ratio: 16 / 10; }
+
+  @include motion {
+    .ch__shot > :global(:first-child) { transition: clip-path var(--duration-slow) var(--ease-move); }
+    .ch__shot :global(img) { transition: scale 1.4s var(--ease-move); }
+
+    :global(.js) .ch__shot:not(:global(.is-in)) {
+      > :global(:first-child) { clip-path: inset(6% 6% 6% 6%); }
+      :global(img) { scale: 1.08; }
+    }
   }
 
   // Credits: one hairline row per role, the role as a tag, the people after it (2 columns from md).

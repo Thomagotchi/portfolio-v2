@@ -8,7 +8,7 @@ import Section from '@/components/ui/Section.astro';
 import Window from '@/components/ui/Window.astro';
 import Chapters from '@/components/case/Chapters.astro';
 import NextProject from '@/components/case/NextProject.astro';
-import WorkImage from '@/components/case/WorkImage.astro';
+import WorkImage from '@/components/ui/WorkImage.astro';
 import { getSite } from '@/lib/sanity';
 import type { CaseStudy } from '@/lib/types';
 import { cleanPath } from '@/lib/url';
@@ -27,11 +27,15 @@ const jsonLd = [{
   keywords: cs.meta.find((m) => m.label === t.stack)?.value, dateModified: cs._updatedAt,
 }];
 const solo = !!cs.screen && !cs.mobile;
+// Gallery: one shot after each chapter but the last, then at least 4 in the grid; empty slots are placeholders.
+const inline = Math.max(0, cs.chapters.length - 1);
+const gallery = Array.from({ length: Math.max(inline + 4, cs.gallery?.length ?? 0) }, (_, i) => cs.gallery?.[i]);
+const rest = gallery.slice(inline);
 ---
 <Base title={cs.title} site={site} seo={cs.seo ?? { description: cs.lede }} jsonLd={jsonLd} path={`/work/${cs.slug}`}>
   <PageHeader label={cs.label} heading={cs.heading} lede={cs.lede}>
     <Cells items={cs.meta} n={[2, 3, cs.meta.length]} class="cs-meta" />
-    {cs.source && <div class="cs-src"><Button href={cs.source.href} variant="secondary" rel="noopener" target="_blank">{cs.source.label}</Button></div>}
+    {cs.source && <div class="cs-src"><Button href={cs.source.href} variant="surface" rel="noopener" target="_blank">{cs.source.label}</Button></div>}
   </PageHeader>
 
   <div class="cs-cv">
@@ -47,7 +51,7 @@ const solo = !!cs.screen && !cs.mobile;
   ) : null}
 
   <Section>
-    <Chapters chapters={cs.chapters} team={cs.team}>
+    <Chapters chapters={cs.chapters} team={cs.team} shots={gallery}>
       {cs.quote && (
         <figure class="cs-qt">
           <blockquote><p>{cs.quote.text}</p></blockquote>
@@ -59,6 +63,11 @@ const solo = !!cs.screen && !cs.mobile;
         <WorkImage image={cs.screen} video={cs.screenVideo} caption={t.screen} sizes={solo ? '(min-width: 1024px) 68vw, 100vw' : '(min-width: 1024px) 45vw, (min-width: 768px) 60vw, 100vw'} />
         {!solo && <WorkImage image={cs.mobile} caption={t.mobile} sizes="(min-width: 1024px) 22vw, (min-width: 768px) 30vw, 100vw" />}
       </div>
+      {rest.length ? (
+        <div class="cs-more">
+          {rest.map((g) => <WorkImage image={g} caption={g?.alt ?? t.shot} sizes="(min-width: 1024px) 34vw, (min-width: 768px) 50vw, 100vw" />)}
+        </div>
+      ) : null}
       {cs.source && <p class="cs-credit muted">{t.credit} <a href={cs.source.href} rel="noopener" target="_blank">{cs.source.label}</a></p>}
     </Chapters>
   </Section>
@@ -110,6 +119,20 @@ const solo = !!cs.screen && !cs.mobile;
 
     > :global(:first-child) { aspect-ratio: 16 / 10; }
     > :global(:last-child) { aspect-ratio: 9 / 12; }
+  }
+
+  // Gallery leftovers: two columns of 4:3 crops, a lone last one spans both at 2:1.
+  .cs-more {
+    display: grid;
+    gap: var(--space-5);
+
+    @include mq(md) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+    > :global(*) { aspect-ratio: 4 / 3; }
+
+    > :global(:last-child:nth-child(odd)) {
+      @include mq(md) { grid-column: 1 / -1; aspect-ratio: 2 / 1; }
+    }
   }
 
   .cs-gal--solo {

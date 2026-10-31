@@ -23,7 +23,7 @@ const fr = {
     copiedSr: (addr: string) => `${addr} copiée dans le presse-papiers`,
   },
 
-  work: { filter: 'Filtrer les projets', all: 'Tous', view: 'Voir', live: 'Site' },
+  work: { filter: 'Filtrer les projets', all: 'Tous', view: 'Voir le projet', live: 'Voir le site' },
 
   case: {
     results: 'Résultats',
@@ -37,6 +37,7 @@ const fr = {
     cover: 'Couverture · 1440 × 720 · à venir',
     screen: 'Écran · 1440 · à venir',
     mobile: 'Mobile · 390 · à venir',
+    shot: 'Visuel · à venir',
     year: 'Année',
     stack: 'Stack',
     credit: "Projet réalisé chez Bruno, avec l'équipe créditée plus haut. Images : Bruno.",
@@ -53,7 +54,7 @@ const fr = {
     title: 'Tarifs',
     points: 'Formules',
     from: 'dès',
-    useSim: 'Partir de là dans le simulateur ↓',
+    useSim: 'Simuler cette formule',
     ask: 'Demander mes disponibilités',
     type: 'Type de projet',
     pages: 'Pages',
@@ -165,7 +166,7 @@ const en: Ui = {
     copiedSr: (addr) => `${addr} copied to the clipboard`,
   },
 
-  work: { filter: 'Filter work', all: 'All', view: 'View', live: 'Live site' },
+  work: { filter: 'Filter work', all: 'All', view: 'View project', live: 'View live site' },
 
   case: {
     results: 'Results',
@@ -179,6 +180,7 @@ const en: Ui = {
     cover: 'Cover · 1440 × 720 · coming',
     screen: 'Screen · 1440 · coming',
     mobile: 'Mobile · 390 · coming',
+    shot: 'Visual · coming',
     year: 'Year',
     stack: 'Stack',
     credit: 'Made at Bruno, with the team credited above. Images: Bruno.',
@@ -195,7 +197,7 @@ const en: Ui = {
     title: 'Pricing',
     points: 'Price points',
     from: 'from',
-    useSim: 'Start from this in the simulator ↓',
+    useSim: 'Estimate this plan',
     ask: 'Ask for available dates',
     type: 'Type of project',
     pages: 'Pages',
