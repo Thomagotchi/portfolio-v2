@@ -35,7 +35,7 @@ const inline = Math.max(0, cs.chapters.length - 1);
 const gallery = Array.from({ length: Math.max(inline + 4, cs.gallery?.length ?? 0) }, (_, i) => cs.gallery?.[i]);
 const rest = gallery.slice(inline);
 ---
-<Base title={cs.title} site={site} seo={cs.seo ?? { description: cs.lede }} jsonLd={jsonLd} path={`/work/${cs.slug}`}>
+<Base title={cs.title} site={site} seo={cs.seo ?? { description: cs.lede }} jsonLd={jsonLd} path={`/work/${cs.slug}`} og={`/og/${lang}/${cs.slug}.png`}>
   <div class="cs-cv">
     <Window mode="load">
       <WorkImage image={cs.cover} video={cs.coverVideo} caption={t.cover} sizes="(min-width: 768px) 92vw, 100vw" class="cs-cv__img" eager />

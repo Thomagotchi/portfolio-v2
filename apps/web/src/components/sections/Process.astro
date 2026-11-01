@@ -128,7 +128,14 @@ const pricing = localize('/pricing', langOf(Astro.currentLocale));
     };
     // When the scroll stops mid-roll, the number settles on the nearest step (the reels ease there).
     const settle = () => { if (!st.isActive) return; const n = Math.round(v); if (n !== v) { set(n); show(n - 1); } };
-    const st = ScrollTrigger.create({ trigger: track, start: 'top top', end: 'bottom bottom', onUpdate: (s) => roll(s.progress) });
+    // Counting starts once the section is pinned (its top under the header) and has held step 01 for 40 % of a
+    // screen: the reader sees the section settle before anything moves (the track is 40svh longer for it).
+    const headerH = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--header-h')) || 64;
+    const st = ScrollTrigger.create({
+      trigger: track, start: () => `top+=${innerHeight * 0.4} ${headerH()}px`, end: 'bottom bottom', invalidateOnRefresh: true,
+      onUpdate: (s) => roll(s.progress),
+    });
+    addEventListener('load', () => ScrollTrigger.refresh(), { once: true }); // late layout shifts above (images, fonts)
     ScrollTrigger.addEventListener('scrollEnd', settle);
     return () => {
       on = all.filter((s) => !s.classList.contains('is-off'));
@@ -235,7 +242,8 @@ const pricing = localize('/pricing', langOf(Astro.currentLocale));
   .pc__big { display: none; }
 
   :global(.is-big) {
-    .pc__track { height: calc(100svh + var(--n, 6) * 40svh); }
+    // A screen, the 40svh hold on 01, then 40svh per step.
+    .pc__track { height: calc(140svh + var(--n, 6) * 40svh); }
 
     .pc__body {
       position: sticky;

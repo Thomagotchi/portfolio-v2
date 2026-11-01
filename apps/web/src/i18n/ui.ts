@@ -26,6 +26,7 @@ const fr = {
   work: { filter: 'Filtrer les projets', all: 'Tous', view: 'Voir le projet', live: 'Voir le site', next: 'Le prochain, c’est le vôtre ?', start: 'Lancer un projet' },
 
   case: {
+    ogTag: 'Étude de cas',
     results: 'Résultats',
     next: 'Projet suivant',
     chapters: 'Chapitres',
@@ -169,6 +170,7 @@ const en: Ui = {
   work: { filter: 'Filter work', all: 'All', view: 'View project', live: 'View live site', next: 'Is yours the next one?', start: 'Start a project' },
 
   case: {
+    ogTag: 'Case study',
     results: 'Results',
     next: 'Next project',
     chapters: 'Chapters',

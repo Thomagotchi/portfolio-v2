@@ -14,8 +14,8 @@ import head from '@/scripts/head.js?raw';
 import { alternates, canonicalOf, DEFAULT_LANG, langOf, LOCALES, TAG, useT } from '@/i18n';
 
 // `path`: the canonical path of this page (/about, /work/x). Defaults to the served one, mapped back.
-interface Props { title: string; site: Site; seo?: SeoData; jsonLd?: Record<string, unknown>[]; path?: string }
-const { title, site, seo, jsonLd = [] } = Astro.props;
+interface Props { title: string; site: Site; seo?: SeoData; jsonLd?: Record<string, unknown>[]; path?: string; og?: string }
+const { title, site, seo, jsonLd = [], og } = Astro.props; // og: a page's own share image (path), else the site's
 const lang = langOf(Astro.currentLocale);
 const t = useT(lang);
 const alt = alternates(Astro.props.path ?? canonicalOf(Astro.url.pathname));
@@ -34,7 +34,7 @@ const graph = [
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <script is:inline set:html={head} />
-    <Seo title={title} seo={seo} image={new URL('/og-image.png', Astro.site).href} lang={lang} />
+    <Seo title={title} seo={seo} image={new URL(og ?? (lang === 'en' ? '/og-image-en.png' : '/og-image.png'), Astro.site).href} lang={lang} />
     {!seo?.noindex && <>
       {LOCALES.map((l) => <link rel="alternate" hreflang={l} href={new URL(alt[l], Astro.site).href} />)}
       <link rel="alternate" hreflang="x-default" href={new URL(alt[DEFAULT_LANG], Astro.site).href} />
