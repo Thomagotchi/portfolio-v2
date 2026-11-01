@@ -1,6 +1,8 @@
 ---
 // Sanity block _type → section component. Add new sections here (pnpm new:section does it for you).
+// Each section gets its look attributes (lib/looks): the look, and the entry derived from the previous section.
 import type { Block } from '@/lib/types';
+import { entryOf, lookAttrs } from '@/lib/looks';
 import Hero from './Hero.astro';
 import Kpi from './Kpi.astro';
 import Statement from './Statement.astro';
@@ -15,6 +17,7 @@ const map = { hero: Hero, kpi: Kpi, statement: Statement, stack: Stack, offers: 
 ---
 {Astro.props.blocks.map((block, i) => {
   // Each component accepts its own block type; the map can't express that pairing.
-  const C = map[block._type] as (props: { block: Block; first?: boolean }) => unknown;
-  return C ? <C block={block} first={i === 0} /> : null;
+  const C = map[block._type] as (props: { block: Block; first?: boolean; lk?: ReturnType<typeof lookAttrs> }) => unknown;
+  const lk = lookAttrs(block.look, entryOf(Astro.props.blocks[i - 1]?.look, block.look));
+  return C ? <C block={block} first={i === 0} lk={lk} /> : null;
 })}

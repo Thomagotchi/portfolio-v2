@@ -4,6 +4,7 @@ import { initDecode } from './decode';
 import { initThread } from './thread';
 import { initClocks } from './clock';
 import { initBrackets } from './brackets';
+import { initLooks } from './looks';
 import { ScrollTrigger } from './gsap';
 
 initScroll();
@@ -14,4 +15,5 @@ initDecode();
 initThread();
 initClocks();
 initBrackets();
+initLooks();
 document.fonts.ready.then(() => ScrollTrigger.refresh());

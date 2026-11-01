@@ -73,6 +73,34 @@ main { flex: 1; position: relative; }
   padding-block: var(--space-section) var(--space-section);
 }
 
+// Section looks (lib/looks, set per block in Sanity): light = the light theme's tokens on the section; signal = the
+// brand red with ink text (ink on signal-300: 6:1, signal-900 on it: 5.6:1). Entries play in scripts/looks.ts.
+[data-look] {
+  background: var(--bg);
+  color: var(--text);
+}
+
+[data-look='signal'] {
+  color-scheme: light;
+
+  --bg: var(--color-signal-300);
+  --surface: color-mix(in srgb, var(--color-ink-950) 6%, var(--color-signal-300));
+  --raised: color-mix(in srgb, var(--color-white) 14%, var(--color-signal-300));
+  --border: color-mix(in srgb, var(--color-ink-950) 22%, var(--color-signal-300));
+  --text: var(--color-ink-950);
+  --muted: var(--color-signal-900);
+  --accent: var(--color-ink-950);
+  --action: var(--color-ink-950);
+  --on-action: var(--color-paper-50);
+  --nav-rest: var(--color-signal-900);
+}
+
+// Bascule: while the theme flips, the sections involved crossfade their colours (a second, then the class goes).
+.is-flipping,
+.is-flipping * {
+  transition: background-color 0.9s var(--ease-soft), color 0.9s var(--ease-soft), border-color 0.9s var(--ease-soft) !important;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -259,7 +287,19 @@ main { flex: 1; position: relative; }
 
   i, b { position: absolute; left: 0; top: 0; }
   i { width: 1px; height: 100%; background: var(--border); transform-origin: top; transform: scaleY(0); }
-  b { left: -3px; top: -3px; width: 7px; height: 7px; background: var(--accent); }
+
+  b {
+    left: -3px;
+    top: -3px;
+    width: 7px;
+    height: 7px;
+    background: var(--accent);
+    opacity: 0;
+    transition: opacity 0.4s var(--ease-soft), background-color 0.3s var(--ease-soft);
+
+    &.is-on { opacity: 1; }
+    &.is-ink { background: var(--color-ink-950); } // over a signal-red section
+  }
 }
 
 @include motion {
@@ -293,23 +333,22 @@ main { flex: 1; position: relative; }
   [aria-expanded='true'] > & { rotate: 45deg; }
 }
 
-// Page transitions: cross-document View Transitions (MPA, no router, no JS). The header keeps its own
-// snapshot so it stays put; the page under it lifts away and the next one opens from the bottom like a
-// window. Browsers without support (Firefox) navigate as usual. Entry animations wait for the end
-// (scripts/head.js adds .vt while it runs).
-@view-transition { navigation: auto; }
-
-@media (prefers-reduced-motion: reduce) {
-  @view-transition { navigation: none; }
+// Page curtain (scripts/head.js): an internal link wipes a panel in the ground colour up from the bottom over the
+// page (under the header); the next page paints under it and it carries on up and out once that page is parsed.
+// Hidden (and out of the way) unless a navigation runs. Entry animations wait for the lift (.vt).
+.pt {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--layer-navbar) - 1);
+  visibility: hidden;
+  pointer-events: none;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  translate: 0 100%;
 }
 
-.nav { view-transition-name: nav; }
+.pt-out .pt, .pt-in .pt { visibility: visible; pointer-events: auto; translate: 0; }
+.pt-out .pt { transition: translate 0.35s var(--ease-move); }
+.pt-lift .pt { translate: 0 -100%; transition: translate 0.5s var(--ease-move); }
 
-::view-transition-old(root) { animation: vt-out 0.6s var(--ease-move) both; }
-::view-transition-new(root) { animation: vt-in 0.8s var(--ease-move) both; }
-
-@keyframes vt-out { to { opacity: 0; translate: 0 -48px; } }
-
-@keyframes vt-in { from { clip-path: inset(100% 0 0); } }
-
-.vt *, .vt *::before, .vt *::after { animation-play-state: paused !important; }
+.vt *:not(.pt, .pt *), .vt *::before, .vt *::after { animation-play-state: paused !important; }

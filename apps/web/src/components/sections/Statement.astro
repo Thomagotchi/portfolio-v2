@@ -5,11 +5,11 @@ import Tag from '@/components/ui/Tag.astro';
 import Seam from '@/components/ui/Seam.astro';
 import type { StatementBlock } from '@/lib/types';
 
-interface Props { block: StatementBlock }
-const { block } = Astro.props;
+interface Props { block: StatementBlock; lk?: Record<string, string | undefined> }
+const { block, lk } = Astro.props;
 const words = block.text.split(' ');
 ---
-<section class="section st" id={block.anchor} aria-label={block.label ?? 'Statement'}>
+<section class="section st" id={block.anchor} aria-label={block.label ?? 'Statement'} {...lk}>
   <Seam />
   <div class="wrap st__in">
     <span class="st__rail" aria-hidden="true" data-rail><i></i><i></i><i></i></span>

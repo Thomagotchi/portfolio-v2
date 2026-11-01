@@ -28,6 +28,10 @@ function runThread(main: HTMLElement, thr: HTMLElement, hero: HTMLElement) {
   let top = 0;
   let len = 1;
   let ys: number[] = [];
+  // Top-level sections of the page: the pixel shows from the third one on (over the first sections it crowds
+  // the content), and turns ink over a signal-red section (the accent would vanish there).
+  const secs = [...main.children].filter((e): e is HTMLElement => e.tagName === 'SECTION');
+  let from = 0, spans: { a: number; b: number; ink: boolean }[] = [];
 
   const docY = (el: HTMLElement) => el.getBoundingClientRect().top + scrollY;
   const measure = () => {
@@ -37,6 +41,8 @@ function runThread(main: HTMLElement, thr: HTMLElement, hero: HTMLElement) {
     thr.style.top = `${top}px`;
     thr.style.height = `${len}px`;
     ys = seams.map(docY);
+    from = secs[2] ? docY(secs[2]) : 0;
+    spans = secs.map((e) => ({ a: docY(e), b: docY(e) + e.offsetHeight, ink: e.dataset.look === 'signal' }));
     update();
   };
   const update = () => {
@@ -44,6 +50,9 @@ function runThread(main: HTMLElement, thr: HTMLElement, hero: HTMLElement) {
     const k = Math.min(1, Math.max(0, (tip - docY(main) - top) / len));
     line.style.transform = `scaleY(${k})`;
     px.style.transform = `translateY(${k * len}px)`;
+    const y = docY(main) + top + k * len; // the pixel, in the page
+    px.classList.toggle('is-on', y >= from);
+    px.classList.toggle('is-ink', spans.some((s) => s.ink && y >= s.a && y < s.b));
     seams.forEach((s, i) => s.classList.toggle('is-on', tip >= ys[i]));
   };
 

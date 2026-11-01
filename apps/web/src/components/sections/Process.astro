@@ -2,6 +2,8 @@
 // Process: the steps of a project, one line each. Switches (design, copy, care…) fold away the steps that
 // depend on them; the numbering follows (CSS counter on the steps still in). The pricing button opens the
 // simulator with the same options set. Without JS: every step shows, no switches.
+// Large screens with motion: the section pins and plays as one big animation instead: a giant number rolls
+// 01 → n as you scroll, the current step's title beside it, a tick per step. The list stays for screen readers.
 import Button from '@/components/ui/Button.astro';
 import Seam from '@/components/ui/Seam.astro';
 import Headline from '@/components/ui/Headline.astro';
@@ -10,14 +12,15 @@ import Switch from '@/components/form/Switch.astro';
 import { langOf, localize } from '@/i18n';
 import type { ProcessBlock } from '@/lib/types';
 
-interface Props { block: ProcessBlock }
-const { block } = Astro.props;
+interface Props { block: ProcessBlock; lk?: Record<string, string | undefined> }
+const { block, lk } = Astro.props;
 const id = `${block._key}-h`;
 const pricing = localize('/pricing', langOf(Astro.currentLocale));
 ---
-<section class="section pc" id={block.anchor} aria-labelledby={id} data-process data-pricing={pricing}>
+<section class="section pc" id={block.anchor} aria-labelledby={id} data-process data-pricing={pricing} {...lk}>
   <Seam />
   <div class="wrap pc__in">
+    <div class="pc__track" data-track>
     <div class="pc__body">
       <div class="pc__side">
         <div class="pc__head">
@@ -38,6 +41,12 @@ const pricing = localize('/pricing', langOf(Astro.currentLocale));
           </li>
         ))}
       </ol>
+      <div class="pc__big" aria-hidden="true" data-big>
+        <div class="pc__num">{['t', 'u'].map((r) => <span class="pc__reel" data-reel={r}>{Array.from({ length: 11 }, (_, d) => <b>{d % 10}</b>)}</span>)}</div>
+        <div class="pc__now"><div class="pc__clip"><p data-now></p></div><span class="pc__of mono" data-of></span></div>
+        <div class="pc__ticks" data-ticks></div>
+      </div>
+    </div>
     </div>
     {block.ctas?.length ? (
       <div class="pc__ctas">{block.ctas.map((c) => <Button href={c.href} variant={c.variant}>{c.label}</Button>)}</div>
@@ -46,6 +55,8 @@ const pricing = localize('/pricing', langOf(Astro.currentLocale));
 </section>
 
 <script>
+  import { ScrollTrigger, reduceMotion } from '@/scripts/gsap';
+
   for (const pc of document.querySelectorAll<HTMLElement>('[data-process]')) {
     const boxes = [...pc.querySelectorAll<HTMLInputElement>('[name="inc"]')];
     const steps = [...pc.querySelectorAll<HTMLElement>('[data-when]')];
@@ -71,8 +82,60 @@ const pricing = localize('/pricing', langOf(Astro.currentLocale));
       const q = new URLSearchParams({ opt: opt.join(','), care: String(care) }).toString();
       sim.forEach((a, i) => (a.href = `${base[i]}?${q}#simulator`));
     };
-    pc.addEventListener('change', apply);
+    pc.addEventListener('change', () => { apply(); big?.(); });
     apply();
+    const big = play(pc);
+    big?.();
+  }
+
+  // The big animation (lg, motion): progress through the track picks the current step among those still in.
+  function play(pc: HTMLElement) {
+    if (reduceMotion() || !matchMedia('(min-width: 1024px)').matches) return undefined;
+    const track = pc.querySelector<HTMLElement>('[data-track]')!;
+    const all = [...pc.querySelectorAll<HTMLElement>('.pc__s')];
+    const [tens, units] = [...pc.querySelectorAll<HTMLElement>('[data-reel]')];
+    const now = pc.querySelector<HTMLElement>('[data-now]')!, of = pc.querySelector<HTMLElement>('[data-of]')!, ticks = pc.querySelector<HTMLElement>('[data-ticks]')!;
+    pc.classList.add('is-big');
+    // The track's length counts every step, on or off: a switch never changes the page's height, so toggling
+    // one doesn't move the page under the reader (the steps still in share the same length).
+    track.style.setProperty('--n', String(all.length));
+    let on: HTMLElement[] = [], cur = -1;
+    // Text, count and ticks: the step the scroll is in.
+    const show = (i: number) => {
+      if (i === cur) return;
+      cur = i;
+      const n = i + 1;
+      now.textContent = on[i]?.querySelector('.pc__t')?.textContent ?? '';
+      now.classList.remove('is-in'); void now.offsetWidth; now.classList.add('is-in');
+      of.textContent = `${String(n).padStart(2, '0')} / ${String(on.length).padStart(2, '0')}`;
+      [...ticks.children].forEach((t, k) => t.classList.toggle('on', k <= i));
+    };
+    // The reels are scrubbed, an odometer on the scroll: each step holds its number, and in its last 30 % the
+    // number rolls to the next one. However fast the scroll, the reels sit where the scroll is (never stuck behind
+    // it) and every digit rolls past (none skipped). The units reel ends on a second 0 so 9 → 10 rolls forward; the
+    // tens reel turns during the units' last tenth.
+    const set = (v: number) => {
+      units.style.setProperty('--v', String(v % 10));
+      tens.style.setProperty('--v', String(Math.floor(v / 10) + Math.max(0, (v % 10) - 9)));
+    };
+    let v = 1;
+    const roll = (p: number) => {
+      const n = on.length, x = Math.min(n - 1e-6, Math.max(0, p * n)), i = Math.floor(x);
+      const f = x - i, r = i < n - 1 ? 1 - (1 - Math.min(1, Math.max(0, (f - 0.7) / 0.3))) ** 3 : 0;
+      v = i + 1 + r;
+      set(v);
+      show(i);
+    };
+    // When the scroll stops mid-roll, the number settles on the nearest step (the reels ease there).
+    const settle = () => { if (!st.isActive) return; const n = Math.round(v); if (n !== v) { set(n); show(n - 1); } };
+    const st = ScrollTrigger.create({ trigger: track, start: 'top top', end: 'bottom bottom', onUpdate: (s) => roll(s.progress) });
+    ScrollTrigger.addEventListener('scrollEnd', settle);
+    return () => {
+      on = all.filter((s) => !s.classList.contains('is-off'));
+      ticks.replaceChildren(...on.map(() => document.createElement('i')));
+      cur = -1;
+      roll(st.progress);
+    };
   }
 </script>
 
@@ -166,6 +229,90 @@ const pricing = localize('/pricing', langOf(Astro.currentLocale));
   }
 
   .pc__t { @include text(title); }
+
+  // The big animation: the track gives the scroll length (a screen, then 40 % of one per step), the body
+  // pins under the header and centres. The list is kept for screen readers only.
+  .pc__big { display: none; }
+
+  :global(.is-big) {
+    .pc__track { height: calc(100svh + var(--n, 6) * 40svh); }
+
+    .pc__body {
+      position: sticky;
+      top: var(--header-h);
+      height: calc(100svh - var(--header-h));
+      align-content: center;
+      align-items: center;
+    }
+
+    .pc__side { position: static; }
+
+    .pc__steps {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+
+    .pc__big {
+      display: grid;
+      gap: var(--space-5);
+    }
+  }
+
+  .pc__num {
+    display: flex;
+    height: 0.82em;
+    overflow: hidden;
+    font-size: clamp(180px, 21vw, 340px);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    line-height: 0.82;
+    letter-spacing: -0.06em;
+  }
+
+  .pc__reel {
+    display: grid;
+    translate: 0 calc(var(--v, 0) * -0.82em);
+    transition: translate 0.3s var(--ease-move); // short: smooths the scrub and the settle, never lags behind
+
+    b { height: 0.82em; font-weight: inherit; }
+  }
+
+  .pc__now {
+    display: grid;
+    gap: var(--space-2);
+    min-height: 2.6em;
+
+    p {
+      margin: 0;
+
+      @include text(h3);
+    }
+
+    :global(.is-in) { animation: rise var(--duration-slow) var(--ease-move) both; }
+  }
+
+  // The title rises inside its own clip, never over the count and ticks below it.
+  .pc__clip { overflow: clip; padding-bottom: 0.12em; }
+
+  .pc__of { color: var(--muted); }
+
+  .pc__ticks {
+    display: flex;
+    gap: var(--space-2);
+
+    :global(i) {
+      flex: 1;
+      height: 2px;
+      background: var(--border);
+      transition: background-color 0.4s var(--ease-soft);
+    }
+
+    :global(i.on) { background: var(--accent); }
+  }
 
   @include motion {
     .pc__s { transition: grid-template-rows var(--duration-base) var(--ease-move), opacity 1s var(--ease-soft) var(--d), translate 1s var(--ease-soft) var(--d); }

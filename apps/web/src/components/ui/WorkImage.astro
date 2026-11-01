@@ -1,9 +1,10 @@
 ---
 // A case-study image from Sanity, optimised at build by astro:assets (AVIF/WebP, responsive widths), or the
 // hatched placeholder while there is none. With a video: the image stays underneath as its poster (a lazy
-// <img>, not the poster attribute, which downloads at once and competes with the fonts), the file is attached
+// <img>, not the poster attribute, which downloads at once and competes with the fonts; eager above the fold), the file is attached
 // after load and plays muted in a loop while on screen, fading in once it plays (never under reduced motion).
-// Fills its box (object-fit: cover); the box sets the ratio.
+// Fills its box (object-fit: cover); the box sets the ratio. Eager (a cover above the fold): quality 60, so its
+// download stays out of the way of the first paint (Lighthouse's simulation counts it before the LCP text).
 import { Image } from 'astro:assets';
 import Placeholder from '@/components/ui/Placeholder.astro';
 import { imageUrl } from '@/lib/sanity';
@@ -11,19 +12,22 @@ import type { SanityImage } from '@/lib/types';
 
 interface Props { image?: SanityImage; video?: string; caption: string; sizes: string; class?: string; eager?: boolean }
 const { image, video, caption, sizes, class: cls, eager } = Astro.props;
-// Sanity asset ids carry the original size (image-<hash>-<w>x<h>-<ext>): never ask for wider than the file.
-const width = Number(image?.asset?._ref.match(/-(\d+)x\d+-/)?.[1] ?? 0);
-const src = width ? imageUrl(image!, Math.min(width, 2048)) : '';
+// Sanity asset ids carry the original size (image-<hash>-<w>x<h>-<ext>): it gives the image its dimensions (no
+// inferSize, which fetches every image to measure it and fails the page when the CDN doesn't answer) and caps the
+// widths, never wider than the file.
+const [, w = '0', h = '0'] = image?.asset?._ref.match(/-(\d+)x(\d+)-/) ?? [];
+const width = Number(w), max = Math.min(width, 2048), height = width ? Math.round((Number(h) * max) / width) : 0;
+const src = width ? imageUrl(image!, max) : '';
 ---
 {src
   ? video
     ? (
       <span class:list={['wv', cls]}>
-        <Image src={src} inferSize alt={image?.alt ?? ''} widths={[480, 800, 1200, 1600, 2048].filter((w) => w <= width)} sizes={sizes} class="wi" loading="lazy" />
+        <Image src={src} width={max} height={height} alt={image?.alt ?? ''} widths={[480, 640, 800, 1200, 1600, 2048].filter((w) => w <= width)} sizes={sizes} class="wi" loading={eager ? 'eager' : 'lazy'} fetchpriority={eager ? 'high' : undefined} quality={eager ? 60 : undefined} />
         <video class="wi wv__v" data-video={video} muted loop playsinline preload="none" aria-hidden="true"></video>
       </span>
     )
-    : <Image src={src} inferSize alt={image?.alt ?? ''} widths={[480, 800, 1200, 1600, 2048].filter((w) => w <= width)} sizes={sizes} class:list={['wi', cls]} loading={eager ? 'eager' : 'lazy'} fetchpriority={eager ? 'high' : undefined} />
+    : <Image src={src} width={max} height={height} alt={image?.alt ?? ''} widths={[480, 640, 800, 1200, 1600, 2048].filter((w) => w <= width)} sizes={sizes} class:list={['wi', cls]} loading={eager ? 'eager' : 'lazy'} fetchpriority={eager ? 'high' : undefined} quality={eager ? 60 : undefined} />
   : <Placeholder caption={caption} class={cls} />}
 
 <script>

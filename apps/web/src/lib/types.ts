@@ -8,7 +8,10 @@ export type Shot = SanityImage & { _key: string; caption?: string };
 /** Heading in three parts: the middle one is muted (the DA's emphasis). */
 export type Headline = { lead: string; muted?: string; tail?: string };
 
-type B<T extends string, P> = { _type: T; _key: string } & P;
+/** Section look (Blocks derives the transition into it from the previous one). */
+export type Look = 'dark' | 'light' | 'signal';
+export type Entry = 'pixels' | 'curtain' | 'bascule';
+type B<T extends string, P> = { _type: T; _key: string; look?: Look } & P;
 export type HeroBlock = B<'hero', { label?: string; heading: Headline; text?: string; ctas?: Cta[]; scene?: boolean }>;
 export type KpiBlock = B<'kpi', { label?: string; heading: Headline; stats: { value: string; label: string }[] }>;
 /** `cite`: the text is a quotation, attributed under it. */

@@ -91,6 +91,24 @@ $breakpoints: (md: 768px, lg: 1024px);
   @return polygon($p);
 }
 
+// The inside of ring() (same arguments): the hole the frame draws, 9 points in the same order for every state, so a
+// body clipped to it opens exactly with the frame, as a mask over what it holds.
+@function hole($a0, $o0, $a1, $o1, $w, $c, $r) {
+  $ri: math.max($r - $w, 0px);
+  $p: (at($a0, $o0 + $c) at($a0, $o0 + $w), at($a1, $o1 - $w) at($a0, $o0 + $w));
+
+  @each $d in (0, 30, 60, 90) {
+    $t: math.div($d * math.$pi, 180);
+    $p: list.append($p, at($a1, $o1 - $w - $ri + $ri * math.cos($t)) at($a1, $o1 - $w - $ri + $ri * math.sin($t)), comma);
+  }
+
+  $p: list.append($p, at($a0, $o0 + $w) at($a1, $o1 - $w), comma);
+  $p: list.append($p, at($a0, $o0 + $w) at($a0, $o0 + $c), comma);
+  $p: list.append($p, at($a0, $o0 + $c) at($a0, $o0 + $c), comma);
+
+  @return polygon($p);
+}
+
 @function square($a, $o, $s) {
   @return polygon(at($a, $o) at($a, $o), at($a, $o + $s) at($a, $o), at($a, $o + $s) at($a, $o + $s), at($a, $o) at($a, $o + $s));
 }

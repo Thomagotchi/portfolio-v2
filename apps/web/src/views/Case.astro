@@ -1,5 +1,7 @@
 ---
-// Case study: header + meta cells, cover window, results, chapters with the index, quote, gallery, next.
+// Case study: the cover first (a window opening at first paint under the header: the page opens on the work,
+// it is the LCP and loads eagerly), then the header with the h1 and meta cells, results, chapters with the index,
+// quote, gallery, next. The h1 stays the page's only one; the cover has its alt and goes in the JSON-LD.
 import Base from '@/layouts/Base.astro';
 import Cells from '@/components/ui/Cells.astro';
 import PageHeader from '@/components/ui/PageHeader.astro';
@@ -9,7 +11,7 @@ import Window from '@/components/ui/Window.astro';
 import Chapters from '@/components/case/Chapters.astro';
 import NextProject from '@/components/case/NextProject.astro';
 import WorkImage from '@/components/ui/WorkImage.astro';
-import { getSite } from '@/lib/sanity';
+import { getSite, imageUrl } from '@/lib/sanity';
 import type { CaseStudy } from '@/lib/types';
 import { cleanPath } from '@/lib/url';
 import { useT, type Lang } from '@/i18n';
@@ -25,6 +27,7 @@ const jsonLd = [{
   '@type': 'CreativeWork', '@id': `${url}#work`, name: cs.title, headline: `${cs.heading.lead} ${cs.heading.muted ?? ''} ${cs.heading.tail ?? ''}`.trim(),
   description: cs.lede, url, creator: { '@id': `${Astro.site}#person` }, ...(year && { dateCreated: year }),
   keywords: cs.meta.find((m) => m.label === t.stack)?.value, dateModified: cs._updatedAt,
+  ...(cs.cover?.asset && { image: imageUrl(cs.cover, 1200) }),
 }];
 const solo = !!cs.screen && !cs.mobile;
 // Gallery: one shot after each chapter but the last, then at least 4 in the grid; empty slots are placeholders.
@@ -33,16 +36,16 @@ const gallery = Array.from({ length: Math.max(inline + 4, cs.gallery?.length ?? 
 const rest = gallery.slice(inline);
 ---
 <Base title={cs.title} site={site} seo={cs.seo ?? { description: cs.lede }} jsonLd={jsonLd} path={`/work/${cs.slug}`}>
-  <PageHeader label={cs.label} heading={cs.heading} lede={cs.lede}>
+  <div class="cs-cv">
+    <Window mode="load">
+      <WorkImage image={cs.cover} video={cs.coverVideo} caption={t.cover} sizes="(min-width: 768px) 92vw, 100vw" class="cs-cv__img" eager />
+    </Window>
+  </div>
+
+  <PageHeader label={cs.label} heading={cs.heading} lede={cs.lede} class="cs-head">
     <Cells items={cs.meta} n={[2, 3, cs.meta.length]} class="cs-meta" />
     {cs.source && <div class="cs-src"><Button href={cs.source.href} variant="surface" rel="noopener" target="_blank">{cs.source.label}</Button></div>}
   </PageHeader>
-
-  <div class="cs-cv">
-    <Window>
-      <WorkImage image={cs.cover} video={cs.coverVideo} caption={t.cover} sizes="(min-width: 768px) 92vw, 100vw" class="cs-cv__img" />
-    </Window>
-  </div>
 
   {cs.results?.length ? (
     <Section label={t.results}>
@@ -76,16 +79,20 @@ const rest = gallery.slice(inline);
 </Base>
 
 <style lang="scss">
-  // Cover: margin to margin, 2:1 (4:3 on mobile); the window opens as it scrolls in.
+  // Cover: first on the page, margin to margin, 2:1 (4:3 on mobile) but never taller than the screen under the
+  // header less a strip, so the header's top shows below it; the window opens at first paint.
   .cs-cv {
     position: relative;
-    margin-inline: var(--margin);
-    aspect-ratio: 4 / 3;
+    height: min(calc((100vw - 2 * var(--margin)) * 3 / 4), calc(100svh - var(--header-h) - var(--cell) * 3));
+    margin: var(--cell) var(--margin) 0;
 
-    @include mq(md) { aspect-ratio: 2 / 1; }
+    @include mq(md) { height: min(calc((100vw - 2 * var(--margin)) / 2), calc(100svh - var(--header-h) - var(--cell) * 3)); }
 
     :global(.cs-cv__img) { position: absolute; inset: 0; }
   }
+
+  // The header follows the cover: less room above it than at the top of a page.
+  :global(.phd.cs-head) { padding-top: calc(var(--cell) * 1.5); }
 
   .cs-src { margin-top: var(--space-5); }
 

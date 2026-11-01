@@ -2,10 +2,10 @@
 import Accordion from '@/components/ui/Accordion.astro';
 import type { FaqBlock } from '@/lib/types';
 
-interface Props { block: FaqBlock }
-const { block } = Astro.props;
+interface Props { block: FaqBlock; lk?: Record<string, string | undefined> }
+const { block, lk } = Astro.props;
 ---
-<section class="section" aria-labelledby={`${block._key}-h`}>
+<section class="section" aria-labelledby={`${block._key}-h`} {...lk}>
   <div class="wrap faq">
     <h2 id={`${block._key}-h`} data-reveal>{block.heading}</h2>
     <Accordion items={block.items} id={block._key} />

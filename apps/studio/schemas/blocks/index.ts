@@ -6,6 +6,13 @@ const heading = defineField({ name: 'heading', type: 'headline', validation: (r)
 const anchor = defineField({ name: 'anchor', type: 'string', description: 'Section id for nav links (#anchor).' });
 const strings = (name: string) => defineField({ name, type: 'array', of: [{ type: 'string' }] });
 const ctas = defineField({ name: 'ctas', title: 'Buttons', type: 'array', of: [{ type: 'cta' }], validation: (r) => r.max(2) });
+// Section look: the transition into it follows from the previous section's look (into light: a pixel wave; into
+// signal: a curtain; light back to dark: the whole view crossfades).
+const look = defineField({
+  name: 'look', type: 'string', initialValue: 'dark',
+  description: 'Dark (default), Light (the light palette) or Signal (brand red, ink text). Use Light and Signal once or twice per page.',
+  options: { list: [{ title: 'Dark', value: 'dark' }, { title: 'Light', value: 'light' }, { title: 'Signal (red)', value: 'signal' }], layout: 'radio', direction: 'horizontal' },
+});
 const sub = (title: string) => ({ select: { h: 'heading.lead', l: 'label' }, prepare: ({ h, l }: { h?: string; l?: string }) => ({ title: h ?? l ?? title, subtitle: title }) });
 
 const hero = defineType({
@@ -23,7 +30,7 @@ const kpi = defineType({
       defineField({ name: 'value', type: 'string', validation: (r) => r.required() }),
       defineField({ name: 'label', type: 'string', validation: (r) => r.required() }),
     ], preview: { select: { title: 'value', subtitle: 'label' } } })],
-  })],
+  }), look],
   preview: sub('KPI'),
 });
 
@@ -32,13 +39,14 @@ const statement = defineType({
   fields: [
     label, anchor, defineField({ name: 'text', type: 'text', rows: 4, validation: (r) => r.required().max(280) }),
     defineField({ name: 'cite', type: 'string', description: 'Set when the text is a quotation: who said it.' }),
+    look,
   ],
   preview: { select: { title: 'text' }, prepare: ({ title }) => ({ title, subtitle: 'Statement' }) },
 });
 
 const stack = defineType({
   name: 'stack', title: 'Tools', type: 'object',
-  fields: [label, heading, { ...strings('tools'), description: 'One card each; 4 per row on desktop, 2 on mobile.', validation: (r) => r.max(16) }],
+  fields: [label, heading, { ...strings('tools'), description: 'One card each; 4 per row on desktop, 2 on mobile.', validation: (r) => r.max(16) }, look],
   preview: sub('Tools'),
 });
 
@@ -51,7 +59,7 @@ const offers = defineType({
       defineField({ name: 'meta', type: 'string' }),
       defineField({ name: 'href', type: 'string', description: 'Optional: the row links when set.' }),
     ] })],
-  }), ctas],
+  }), ctas, look],
   preview: sub('Offers'),
 });
 
@@ -65,7 +73,7 @@ const work = defineType({
       defineField({ name: 'category', type: 'string', description: 'Filter tab', validation: (r) => r.required() }),
       defineField({ name: 'href', type: 'string', description: 'Case study link: shows the View pill.' }),
     ], preview: { select: { title: 'title', subtitle: 'category' } } })],
-  })],
+  }), look],
   preview: sub('Work'),
 });
 
@@ -78,6 +86,7 @@ const faq = defineType({
       defineField({ name: 'question', type: 'string', validation: (r) => r.required() }),
       defineField({ name: 'answer', type: 'text', rows: 3, validation: (r) => r.required() }),
     ] }] }),
+    look,
   ],
   preview: { select: { title: 'heading' }, prepare: ({ title }) => ({ title, subtitle: 'FAQ' }) },
 });
@@ -107,6 +116,7 @@ const process = defineType({
       ], preview: { select: { title: 'title', w: 'when' }, prepare: ({ title, w }: { title?: string; w?: string }) => ({ title, subtitle: w ? `only with ${w}` : undefined }) } })],
     }),
     ctas,
+    look,
   ],
   preview: sub('Process'),
 });

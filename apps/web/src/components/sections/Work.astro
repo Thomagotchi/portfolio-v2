@@ -3,6 +3,9 @@
 // rectangle as it scrolls in (window reveal, clip-path scrubbed). Each row shows its case study's cover
 // (video on top when there is one), found by the slug at the end of its href; the cover and the surface CTA
 // link to it (the cover is a duplicate link, hidden from assistive tech and the tab order).
+// Large screens with motion: a horizontal gallery. The section pins under the header and the vertical scroll
+// slides the cards sideways; one card at a time is full size (the first at the start, the last at the end), the others step back. A last card leads to
+// contact (gallery only). Filters still apply (the track re-measures). Mobile / reduced motion: the list.
 import Headline from '@/components/ui/Headline.astro';
 import Tag from '@/components/ui/Tag.astro';
 import Seam from '@/components/ui/Seam.astro';
@@ -12,16 +15,18 @@ import { getCases } from '@/lib/sanity';
 import type { WorkBlock } from '@/lib/types';
 import { langOf, localize, useT } from '@/i18n';
 
-interface Props { block: WorkBlock }
-const { block } = Astro.props;
+interface Props { block: WorkBlock; lk?: Record<string, string | undefined> }
+const { block, lk } = Astro.props;
 const lang = langOf(Astro.currentLocale);
 const t = useT(lang).work;
 const cats = [...new Set(block.items.map((w) => w.category))];
 const cases = await getCases(lang);
 const caseOf = (href?: string) => (href ? cases.find((c) => c.slug === href.split(/[?#]/)[0].split('/').filter(Boolean).at(-1)) : undefined);
 ---
-<section class="section wk" id={block.anchor} aria-labelledby={`${block._key}-h`}>
+<section class="section wk" id={block.anchor} aria-labelledby={`${block._key}-h`} {...lk}>
   <Seam />
+  <div class="wk__track" data-htrack>
+  <div class="wk__pin">
   <div class="wrap wk__in" data-window>
     {block.label && <Tag>{block.label}</Tag>}
     <Headline heading={block.heading} id={`${block._key}-h`} />
@@ -48,26 +53,84 @@ const caseOf = (href?: string) => (href ? cases.find((c) => c.slug === href.spli
             </li>
           );
         })}
+        <li class="wk__row wk__next" aria-hidden="true">
+          <div class="wk__item">
+            <div class="wk__cv wk__cv--next"><span>{t.next}</span></div>
+            <div class="wk__txt"><Button href={localize('/contact', lang)} variant="surface" tabindex="-1">{t.start}</Button></div>
+          </div>
+        </li>
       </ul>
+      <div class="wk__bar" aria-hidden="true"><i data-hbar></i></div>
     </div>
+  </div>
+  </div>
   </div>
 </section>
 
 <script>
   import { ScrollTrigger, reduceMotion } from '@/scripts/gsap';
+  import { scrollTo } from '@/scripts/scroll';
+
+  const headerH = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--header-h')) || 64;
 
   for (const fl of document.querySelectorAll<HTMLElement>('[data-filter]')) {
     const btns = [...fl.querySelectorAll<HTMLButtonElement>('button[data-c]')];
     const rows = [...fl.querySelectorAll<HTMLElement>('.wk__row')];
+    // Applies a filter: the rows of other categories fold away (and leave the tab order).
+    const apply = (c: string) => rows.forEach((r) => {
+      const off = c !== 'all' && !!r.dataset.c && r.dataset.c !== c; // the contact card (no category) stays
+      r.classList.toggle('is-off', off);
+      r.inert = off;
+    });
     btns.forEach((b) => b.addEventListener('click', () => {
+      if (b.getAttribute('aria-pressed') === 'true') return;
       btns.forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
-      rows.forEach((r) => {
-        const off = b.dataset.c !== 'all' && r.dataset.c !== b.dataset.c;
-        r.classList.toggle('is-off', off);
-        r.inert = off;
-      });
+      // The gallery takes it over (it cross-fades); the list folds its rows (grid-template-rows) and, when the
+      // reader is past the top of the section, glides back to it (a shorter list would leave them further down).
+      if (!fl.dispatchEvent(new CustomEvent('filter', { detail: () => apply(b.dataset.c!), cancelable: true }))) return;
+      apply(b.dataset.c!);
       ScrollTrigger.refresh();
+      const top = fl.closest('section')!.querySelector<HTMLElement>('[data-htrack]')!.getBoundingClientRect().top;
+      if (top < headerH() - 1) scrollTo(scrollY + top - headerH());
     }));
+  }
+
+  // Horizontal gallery (lg, motion): the track is a screen tall plus the distance the cards travel.
+  if (!reduceMotion() && matchMedia('(min-width: 1024px)').matches) {
+    for (const track of document.querySelectorAll<HTMLElement>('[data-htrack]')) {
+      const sec = track.closest('section')!, pin = track.querySelector<HTMLElement>('.wk__pin')!;
+      const row = track.querySelector<HTMLElement>('.wk__rows')!, bar = track.querySelector<HTMLElement>('[data-hbar]')!;
+      sec.classList.add('is-h');
+      const dist = () => Math.max(0, row.scrollWidth - row.clientWidth);
+      const size = () => { track.style.height = `${pin.offsetHeight + dist()}px`; };
+      const cards = () => [...row.children].filter((c) => !c.classList.contains('is-off')) as HTMLElement[];
+      const set = (p: number) => {
+        row.style.transform = `translate3d(${-p * dist()}px, 0, 0)`;
+        bar.style.transform = `scaleX(${p})`;
+        // The focus runs from the first card's centre to the last one's with the progress: the first card is the
+        // full-size one at the start, the last at the end.
+        const cs = cards(), ctr = (c: HTMLElement) => c.offsetLeft + c.offsetWidth / 2;
+        const focus = cs.length ? ctr(cs[0]) + p * (ctr(cs[cs.length - 1]) - ctr(cs[0])) : 0;
+        for (const c of cs) c.style.setProperty('--d', Math.min(1, Math.abs(ctr(c) - focus) / innerWidth).toFixed(3));
+      };
+      size();
+      const st = ScrollTrigger.create({ trigger: track, start: () => `top ${headerH()}px`, end: 'bottom bottom', onUpdate: (s) => set(s.progress), onRefresh: (s) => { size(); set(s.progress); } });
+      // A filter: the cards fade out while the page glides back to the start of the gallery, the row is swapped
+      // and re-measured there (at progress 0 both rows sit at the same place), then the new cards fade in.
+      let busy = false;
+      track.querySelector('[data-filter]')?.addEventListener('filter', async (e) => {
+        e.preventDefault();
+        if (busy) return;
+        busy = true;
+        row.classList.add('is-fading');
+        const top = track.getBoundingClientRect().top - headerH();
+        await Promise.all([Math.abs(top) > 1 ? scrollTo(scrollY + top, { duration: 0.8 }) : null, new Promise((r) => setTimeout(r, 320))]);
+        (e as CustomEvent<() => void>).detail();
+        cards().forEach((c, i) => c.style.setProperty('--i', String(i)));
+        size(); ScrollTrigger.refresh(); set(st.progress);
+        requestAnimationFrame(() => { row.classList.remove('is-fading'); busy = false; });
+      });
+    }
   }
 
   const reveal = (wk: HTMLElement, p: number) => {
@@ -77,7 +140,7 @@ const caseOf = (href?: string) => (href ? cases.find((c) => c.slug === href.spli
   if (!reduceMotion()) {
     for (const wk of document.querySelectorAll<HTMLElement>('[data-window]')) {
       ScrollTrigger.create({
-        trigger: wk, start: 'top bottom', end: () => `+=${innerHeight * 0.6}`,
+        trigger: wk, start: 'top bottom', end: () => `+=${innerHeight * 0.3}`,
         onUpdate: ({ progress }) => reveal(wk, progress),
         onRefresh: ({ progress }) => reveal(wk, progress), // a resize re-measures: redraw at the new progress
       });
@@ -167,4 +230,77 @@ const caseOf = (href?: string) => (href ? cases.find((c) => c.slug === href.spli
   }
 
   .wk__t { @include text(h3); }
+
+  .wk__next, .wk__bar { display: none; }
+
+  // Horizontal gallery: the pin holds a screen under the header; cards in one row, cover on top, sized so a card
+  // and the heading fit the height; the further from the centre, the smaller and dimmer (--d, set by the script).
+  :global(.is-h) {
+    .wk__pin {
+      position: sticky;
+      top: var(--header-h);
+      display: grid;
+      align-content: center;
+      min-height: calc(100svh - var(--header-h));
+      padding-block: var(--space-block);
+      overflow: hidden;
+    }
+
+    // minmax(0, 1fr): a grid item is as wide as its content by default, so the row would widen the grid
+    // instead of overflowing it (nothing to slide).
+    .wk__in, .wk__list { grid-template-columns: minmax(0, 1fr); }
+
+    .wk__rows {
+      display: flex;
+      gap: var(--space-5);
+      min-width: 0;
+      margin-left: 0;
+      will-change: transform;
+    }
+
+    .wk__row {
+      flex: 0 0 min(30vw, calc((100svh - var(--header-h) - 480px) * 1.6));
+      scale: calc(1 - var(--d, 0) * 0.14);
+      opacity: calc(1 - var(--d, 0) * 0.6);
+      transform-origin: center bottom;
+
+      &:global(.is-off) { display: none; }
+    }
+
+    .wk__item {
+      grid-template-columns: minmax(0, 1fr);
+      height: 100%;
+      transition: opacity 0.45s var(--ease-soft) calc(var(--i, 0) * 0.06s), translate 0.6s var(--ease-move) calc(var(--i, 0) * 0.06s), background-color var(--duration-fast) var(--ease-soft);
+    }
+
+    .wk__rows:global(.is-fading) .wk__item { opacity: 0; translate: 0 16px; transition-duration: 0.3s; transition-delay: 0s; }
+
+    .wk__cv {
+      border-right: 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .wk__next { display: grid; }
+
+    .wk__next .wk__txt { align-content: end; } // its button alone, on the same line as the other cards'
+
+    .wk__cv--next {
+      display: grid;
+      align-items: end;
+      padding: var(--space-card);
+      background: var(--accent);
+      color: var(--color-ink-950);
+
+      span { @include text(h2); }
+    }
+
+    .wk__bar {
+      display: block;
+      height: 1px;
+      margin-top: var(--space-5);
+      background: var(--border);
+
+      i { display: block; height: 1px; background: var(--text); transform: scaleX(0); transform-origin: left; }
+    }
+  }
 </style>

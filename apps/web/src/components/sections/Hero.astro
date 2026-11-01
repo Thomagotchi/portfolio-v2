@@ -1,8 +1,10 @@
 ---
-// Window open (ui/Window, at first paint) into a 1px frame on the frame line, the text rises out of a mask, then the
-// code field (scripts/codefield: this file's own source, scrolling down, lit by the pointer) fades in beside the text.
-// All CSS at first paint: JS only loads the scene. The hero is exactly one viewport; the title scales with
-// width and height so the block always fits inside the frame. The whole section feeds the scene's pointer.
+// Window open (ui/Window, at first paint) into a 1px frame on the frame line. Home (code field): the hero then
+// builds itself (scripts/build: outlines, skeleton bars, the text uncovered behind an accent caret), and the code
+// field (scripts/codefield: this file's own source, drifting down) fades in beside the text once it is built;
+// hovering a part of the hero scrolls the code to the lines that render it. Other pages: the text rises out of
+// a mask. Text is painted from the first frame either way (LCP). The hero is exactly one viewport; the title
+// scales with width and height so the block always fits inside the frame.
 // Slots (inner pages, e.g. About): "scene" replaces the code field inside the window; the default slot rises
 // after the text (meta cells).
 import Button from '@/components/ui/Button.astro';
@@ -13,7 +15,7 @@ import type { HeroBlock } from '@/lib/types';
 interface Props { block: HeroBlock; first?: boolean }
 const { block, first } = Astro.props; // label: a wrap never starts a line with its ' · ' separator
 ---
-<section class="hero" data-hero>
+<section class="hero" data-hero data-build={!Astro.slots.has('scene') && block.scene ? '' : undefined}>
   <Window mode="load">
     {Astro.slots.has('scene')
       ? <div class="hero__field"><slot name="scene" /></div>
@@ -34,21 +36,27 @@ const { block, first } = Astro.props; // label: a wrap never starts a line with 
 
 <script>
   import { mountCode } from '@/scripts/three/load';
+  import { build } from '@/scripts/build';
 
   const host = document.querySelector<HTMLElement>('[data-hero] [data-code]');
-  // Fades in 1.8 s after navigation (the window has opened), whatever time the script arrives.
+  // Built first, then the code field fades in; each part of the hero is tied to the lines that render it.
   if (host) {
-    const hero = host.closest<HTMLElement>('[data-hero]')!;
-    mountCode(host, {
-      pointer: hero, text: hero.querySelector('.hero__content'), fill: host.dataset.code === 'full' ? 'full' : 'side',
-      delay: Math.max(0, 1800 - performance.now()),
-    });
+    const hero = host.closest<HTMLElement>('[data-hero]')!, text = hero.querySelector<HTMLElement>('.hero__content');
+    const part = (sel: string) => text?.querySelector<HTMLElement>(sel)?.parentElement;
+    const targets = [
+      { el: part('.tag'), from: 'class="tag"' },
+      { el: part('.hero__title'), from: '<Headline' },
+      { el: part('.lede'), from: 'class="lede"' },
+      { el: part('.hero__ctas'), from: 'hero__ctas', to: ') : null}' },
+    ].filter((t): t is { el: HTMLElement; from: string; to?: string } => !!t.el);
+    build(hero).finally(() => mountCode(host, { text, targets, fill: host.dataset.code === 'full' ? 'full' : 'side' }));
   }
 </script>
 
 <style lang="scss">
   // One viewport. Content sits low in the frame, inset from it on every side (min-height: never clips it).
   .hero {
+    --duration-hero: 1.1s; // the window opens quicker here: the build follows it
     --pad: clamp(24px, 7svh, 88px);
     --win-inset: var(--frame);
     --rise-at: calc(var(--duration-hero) + 0.1s); // content rises once the window has opened, never during
@@ -91,6 +99,31 @@ const { block, first } = Astro.props; // label: a wrap never starts a line with 
     }
   }
 
+  // Build (home): each block is masked away from the left (a mask, not a clip: the masked text still counts as
+  // painted, so the LCP is the first frame; measured, a clip-path or a transparent colour moves it to the reveal)
+  // and scripts/build uncovers it (--rv) while it draws the skeleton. No box is drawn over the text. The mask
+  // spans the whole block, padding included (the CTAs' edges sit in it). Without JS --rv runs to 1 by
+  // itself once the window has opened; under reduced motion there is no mask (and nothing rises).
+  .hero[data-build] :global(.rise) > :global(*) { animation: none; }
+
+  @include motion {
+    .hero[data-build] :global(.rise) {
+      mask-image: linear-gradient(90deg, var(--color-ink-950) calc(var(--rv) * 100%), transparent 0); // any opaque colour: only the alpha counts
+      animation: unveil var(--duration-slow) var(--ease-move) calc(var(--rise-at) + 1s) both;
+    }
+
+    .hero[data-build]:global(.is-building .rise) { animation: none; }
+  }
+
+  .hero :global(.hero__build) {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+
   .hero__more {
     justify-self: stretch;
     margin-top: var(--space-block);
@@ -108,4 +141,8 @@ const { block, first } = Astro.props; // label: a wrap never starts a line with 
 
     @include mq(md) { flex-flow: row wrap; }
   }
+
+  @property --rv { syntax: '<number>'; inherits: true; initial-value: 0; }
+
+  @keyframes unveil { to { --rv: 1; } }
 </style>

@@ -30,7 +30,7 @@ const shape = [...value].map((c) => (/\d/.test(c) ? 'd' : c)).join('');
   }
 
   @include motion {
-    .odo :global(.reel) { transition: translate 1.6s var(--ease-move) calc(1.3s + var(--i, 0) * 0.08s); }
+    .odo :global(.reel) { transition: translate var(--odo-dur, 1.6s) var(--ease-move) calc(var(--odo-at, 1.3s) + var(--i, 0) * 0.08s); } // --odo-at, --odo-dur: a parent can start the roll later, or make it quicker
     .odo--live :global(.reel) { transition: translate 0.8s var(--ease-move) calc(var(--i, 0) * 0.04s); }
     :global(.js [data-inview]:not(.is-in)) .odo :global(.reel) { translate: 0; transition: none; }
   }

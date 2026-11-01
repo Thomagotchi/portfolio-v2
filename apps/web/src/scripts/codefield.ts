@@ -1,14 +1,16 @@
-// Code field (home hero): the hero's own source (Hero.astro, read at build), straight, scrolling down, fading to
-// black towards the top. "side": a column beside the text; "full": the whole hero, fainter, dimmed behind the text. The pointer is a reading light: tokens near it sharpen,
-// keywords under it turn accent, its line highlights, a caret blinks, and a known token shows its type like an
-// editor tooltip (fine pointers only). Without a pointer, a ghost wanders so the field is never still.
-// Canvas 2D: the faint text is drawn once into a sheet and blitted each frame; only tokens near the pointer are
-// drawn live. Paused off screen and in hidden tabs, one still frame under reduced motion.
+// Code field (home hero): the hero's own source (Hero.astro, read at build, comments stripped), straight and
+// still (placed so the lines of the hero's parts sit level with the text), fading to black towards the top. "side": a column beside the text; "full": the whole hero,
+// fainter, dimmed behind the text. Hovering (or focusing) a part of the hero lights the lines that render it.
+// Canvas 2D: the faint text is drawn once into a sheet and blitted each frame; only lit lines are drawn live.
+// Paused off screen and in hidden tabs; under reduced motion the code stands still.
 import source from '@/components/sections/Hero.astro?raw';
 
+/** A part of the hero and the source lines that render it: the first line containing `from`, through `to`. */
+export type CodeTarget = { el: HTMLElement; from: string; to?: string };
+
 export type CodeOptions = {
-  /** Element that receives pointer moves (defaults to the host). */
-  pointer?: HTMLElement;
+  /** Parts of the hero that light their lines of code on hover and focus. */
+  targets?: CodeTarget[];
   /** The hero's text block: the field dims behind it. */
   text?: HTMLElement | null;
   /** A column beside the text (default), or the whole hero at a lower opacity. */
@@ -17,39 +19,28 @@ export type CodeOptions = {
 
 const KW = /^(import|from|const|interface|if|await|return|new|export|type|let|of|for|as)$/;
 const TOKEN = /\s+|[A-Za-z_$][\w$-]*|'[^']*'|"[^"]*"|\d+|./g;
-const TYPES: Record<string, string> = {
-  Button: 'AstroComponent<ButtonProps>',
-  Headline: 'AstroComponent<{ heading: Headline; as?: "h1" | "h2" }>',
-  Window: 'AstroComponent<{ mode: "load" | "view" }>',
-  HeroBlock: 'type HeroBlock = { heading; text?; ctas?: Cta[]; scene? }',
-  Props: 'interface Props { block: HeroBlock; first?: boolean }',
-  block: 'const block: HeroBlock',
-  first: 'const first: boolean | undefined',
-  Astro: 'AstroGlobal<Props>',
-  mountCode: '(host: HTMLElement, opts: CodeOptions) => void',
-  host: 'const host: HTMLElement | null',
-  querySelector: '<E extends Element>(selectors: string) => E | null',
-  closest: '<E extends Element>(selectors: string) => E | null',
-  section: 'HTMLElement',
-  hero: '.hero { min-height: calc(100svh - var(--header-h)) }',
-  clamp: 'clamp(min, preferred, max)',
-};
 
 type Tok = { t: string; x: number; w: number; kind: 'kw' | 'str' | 'tag' | 'type' | 'id' };
 const kindOf = (t: string): Tok['kind'] =>
   KW.test(t) ? 'kw' : /^['"]/.test(t) ? 'str' : /^[<>/{}=();:,.[\]]$/.test(t) ? 'tag' : /^[A-Z]/.test(t) ? 'type' : 'id';
 
-export async function codefield(host: HTMLElement, { pointer = host, text, fill = 'side' }: CodeOptions) {
+export async function codefield(host: HTMLElement, { targets = [], text, fill = 'side' }: CodeOptions) {
   const full = fill === 'full';
   const base = full ? 0.09 : 0.16, live = full ? 0.6 : 0.82; // faint layer, lit tokens
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const fine = matchMedia('(hover: hover) and (pointer: fine)').matches;
   const css = getComputedStyle(host);
   const col = (n: string) => css.getPropertyValue(n).trim();
   const C = { text: col('--text'), muted: col('--muted'), accent: col('--accent'), raised: col('--raised'), border: col('--border') };
   const family = col('--font-mono') || 'monospace';
-  // Frontmatter, markup and script (the styles add length, not interest); long lines cut, so the sheet stays small.
-  const lines = source.split('<style')[0].replace(/\n+$/, '').split('\n').map((l) => (l.length > 96 ? `${l.slice(0, 95)}…` : l));
+  // Frontmatter, markup and script (the styles add length, not interest), without comments (whole-line ones go,
+  // trailing ones are cut, runs of blank lines fold into one); each line keeps its number in the file. Long lines
+  // cut, so the sheet stays small.
+  const src = source.split('<style')[0].replace(/\n+$/, '').split('\n')
+    .map((l, i) => ({ l: l.replace(/\s+\/\/\s.*$/, ''), n: i + 1, drop: /^\s*\/\//.test(l) }))
+    .filter((o, i, all) => !o.drop && !(o.l.trim() === '' && all.slice(0, i).filter((q) => !q.drop).at(-1)?.l.trim() === ''));
+  const lines = src.map(({ l }) => (l.length > 96 ? `${l.slice(0, 95)}…` : l));
+  const lineOf = (s: string) => lines.findIndex((l) => l.includes(s));
+  const spans = targets.map(({ el, from, to }) => { const a = lineOf(from); return { el, a, b: to ? Math.max(a, lineOf(to)) : a }; }).filter((t) => t.a >= 0);
 
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d')!;
@@ -76,7 +67,7 @@ export async function codefield(host: HTMLElement, { pointer = host, text, fill 
     sx.setTransform(sd, 0, 0, sd, 0, 0); sx.font = ctx.font; sx.textBaseline = 'alphabetic';
     lines.forEach((_, i) => {
       const y = i * lh + fs;
-      sx.globalAlpha = 0.6; sx.fillStyle = C.muted; sx.textAlign = 'right'; sx.fillText(String(i + 1), gutter - cw * 1.5, y); sx.textAlign = 'left';
+      sx.globalAlpha = 0.6; sx.fillStyle = C.muted; sx.textAlign = 'right'; sx.fillText(String(src[i].n), gutter - cw * 1.5, y); sx.textAlign = 'left';
       for (const k of toks[i]) { sx.globalAlpha = alpha[k.kind]; sx.fillStyle = colour(k.kind); sx.fillText(k.t, k.x, y); }
     });
     measure();
@@ -112,50 +103,48 @@ export async function codefield(host: HTMLElement, { pointer = host, text, fill 
     vx.filter = 'none'; vx.globalCompositeOperation = 'source-over';
   };
 
-  const P = { x: 0, y: 0, tx: 0, ty: 0, inside: false, last: -1e9 };
-  const ghost = (t: number) => { P.tx = W * (0.78 + 0.1 * Math.sin(t / 1900)); P.ty = (mask.mobile ? mask.top * 0.55 : H * 0.45) + H * 0.18 * Math.sin(t / 1400 + 1); };
+  // Placement: off (px), line i sits at i * lh + off (modulo the source's height); a focused part's lines are lit by hl.
+  let off = 0, focus: (typeof spans)[number] | null = null;
+  const hl = new Float32Array(lines.length);
+  // The code stands still, placed once (and on resize) so the lines of the hero's parts sit level with the text.
+  const place = () => {
+    if (!spans.length) return;
+    const hb = host.getBoundingClientRect(), tb = text?.getBoundingClientRect();
+    const a = Math.min(...spans.map((t) => t.a)), b = Math.max(...spans.map((t) => t.b));
+    const cy = tb ? tb.top - hb.top + tb.height / 2 : H / 2;
+    off = cy - ((a + b) / 2) * lh - fs * 0.65;
+  };
+  const step = (dt: number) => {
+    const f = focus && !full && !mask.mobile ? focus : null;
+    const k = reduce ? 1 : 1 - Math.exp(-dt * 8);
+    for (let i = 0; i < lines.length; i++) hl[i] += ((f && i >= f.a && i <= f.b ? 1 : 0) - hl[i]) * k;
+  };
 
-  const frame = (t: number) => {
+  const frame = () => {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
     // Side by side: a column from just past the text to the right edge; stacked or full: from the frame's left.
     const ox = full || mask.mobile ? W * 0.04 : Math.max(mask.right + W * 0.06, W * 0.52);
-    // Full: the source tiled in columns across the hero, each scrolling out of step with the next.
+    // Full: the source tiled in columns across the hero, each out of step with the next.
     const sw = sheet.width * (total / sheet.height), colW = sw + cw * 4, cols = full ? Math.max(1, Math.ceil((W - ox) / colW)) : 1;
-    const offOf = (c: number) => (((reduce ? 0 : -t / 90) + c * total * 0.37) % total + total) % total; // scrolls down
-    const R = Math.max(140, W * 0.13);
+    const offOf = (c: number) => (((-off) + c * total * 0.37) % total + total) % total;
     ctx.translate(ox, 0);
     // Faint layer: the sheet, tiled down each column.
     ctx.globalAlpha = base;
     for (let c = 0; c < cols; c++) { const o = offOf(c); for (let y = -o - total; y < H; y += total) ctx.drawImage(sheet, c * colW, y, sw, total); }
-    // The pointer's column carries the live layer.
-    const cp = Math.min(cols - 1, Math.max(0, Math.floor((P.x - ox) / colW))), off = offOf(cp);
-    ctx.translate(cp * colW, 0);
-    const lx = P.x - ox - cp * colW, ly = P.y; // pointer in that column's frame
-    // Live layer: rows within reach of the pointer.
-    const n0 = Math.floor((ly - R + off) / lh), n1 = Math.ceil((ly + R + off) / lh);
-    let hov: (Tok & { y: number }) | null = null;
-    for (let n = n0; n <= n1; n++) {
-      const y = n * lh - off + fs, li = ((n % lines.length) + lines.length) % lines.length;
-      const on = Math.abs(y - fs * 0.35 - ly) < lh / 2 && lx > 0;
-      if (on) { ctx.globalAlpha = 0.04; ctx.fillStyle = C.text; ctx.fillRect(-cw, y - lh * 0.68, gutter + cw * 70, lh); ctx.globalAlpha = 0.6; ctx.fillStyle = C.muted; ctx.textAlign = 'right'; ctx.fillText(String(li + 1), gutter - cw * 1.5, y); ctx.textAlign = 'left'; }
-      for (const k of toks[li]) {
-        const d = Math.hypot(k.x + k.w / 2 - lx, y - fs * 0.35 - ly), a = Math.exp(-(d * d) / (R * R));
-        if (a < 0.04) continue;
-        ctx.globalAlpha = live * a * alpha[k.kind];
-        ctx.fillStyle = k.kind === 'kw' && a > 0.5 ? C.accent : colour(k.kind);
-        ctx.fillText(k.t, k.x, y);
-        if (fine && on && lx >= k.x && lx <= k.x + k.w && TYPES[k.t]) hov = { ...k, y };
+    // Lit lines (first column): a faint band, an accent mark, the line at full strength.
+    const o = offOf(0);
+    for (let i = 0; i < lines.length; i++) {
+      const h = hl[i];
+      if (h < 0.02) continue;
+      for (let y = i * lh - o + fs - total; y < H + lh; y += total) {
+        if (y < -lh) continue;
+        ctx.globalAlpha = 0.05 * h; ctx.fillStyle = C.text; ctx.fillRect(-cw, y - lh * 0.68, sw + cw, lh);
+        ctx.globalAlpha = h; ctx.fillStyle = C.accent; ctx.fillRect(-cw, y - lh * 0.68, 2, lh);
+        ctx.globalAlpha = 0.6 * h; ctx.fillStyle = C.muted; ctx.textAlign = 'right'; ctx.fillText(String(src[i].n), gutter - cw * 1.5, y); ctx.textAlign = 'left';
+        for (const k of toks[i]) { ctx.globalAlpha = live * h * alpha[k.kind]; ctx.fillStyle = colour(k.kind); ctx.fillText(k.t, k.x, y); }
       }
     }
     ctx.globalAlpha = 1;
-    if (!reduce && Math.floor(t / 530) % 2 && lx > gutter) { ctx.fillStyle = C.accent; ctx.fillRect(gutter + Math.round((lx - gutter) / cw) * cw, ly - fs * 0.9, 2, fs * 1.2); }
-    if (hov) {
-      const tip = TYPES[hov.t], bw = tip.length * cw + 20, by = hov.y + 10;
-      ctx.fillStyle = C.text; ctx.fillRect(hov.x, hov.y + 3, hov.w, 1);
-      ctx.fillStyle = C.raised; ctx.fillRect(hov.x, by, bw, lh + 8);
-      ctx.strokeStyle = C.border; ctx.lineWidth = 1; ctx.strokeRect(hov.x + 0.5, by + 0.5, bw - 1, lh + 7);
-      ctx.fillStyle = C.text; ctx.fillText(tip, hov.x + 10, by + lh * 0.85);
-    }
     // The veil: to black towards the top, dimmed behind the text.
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.globalCompositeOperation = 'destination-in';
     ctx.drawImage(veil, 0, 0, W, H);
@@ -164,45 +153,37 @@ export async function codefield(host: HTMLElement, { pointer = host, text, fill 
 
   await document.fonts.load(`12px ${family}`).catch(() => {});
   layout();
-  const settle = () => measure();
+  place();
+  const settle = () => { measure(); place(); };
   text?.addEventListener('animationend', settle);
   host.append(canvas);
-  ghost(0); P.x = P.tx; P.y = P.ty;
-  frame(0);
+  frame();
   void getComputedStyle(canvas).opacity; // start the CSS fade from 0
   host.classList.add('is-ready');
 
-  const ro = new ResizeObserver(() => { layout(); if (reduce) { ghost(0); P.x = P.tx; P.y = P.ty; frame(0); } });
-  ro.observe(host);
-  if (reduce) return () => { ro.disconnect(); text?.removeEventListener('animationend', settle); canvas.remove(); };
+  // Hover and keyboard focus on a part of the hero focus its lines.
+  const on = (t: (typeof spans)[number]) => () => { focus = t; if (reduce) { step(0); frame(); } };
+  const offFocus = (t: (typeof spans)[number]) => () => { if (focus === t) focus = null; if (reduce) { step(0); frame(); } };
+  const subs = spans.flatMap((t) => [['pointerenter', on(t)], ['focusin', on(t)], ['pointerleave', offFocus(t)], ['focusout', offFocus(t)]].map(([e, f]) => [t.el, e, f] as const));
+  subs.forEach(([el, e, f]) => el.addEventListener(e as string, f as EventListener));
 
-  const onMove = (e: PointerEvent) => {
-    if (e.pointerType !== 'mouse') return;
-    const b = host.getBoundingClientRect();
-    P.tx = e.clientX - b.left; P.ty = e.clientY - b.top;
-    if (!P.inside) { P.x = P.tx; P.y = P.ty; }
-    P.inside = true; P.last = performance.now();
-  };
-  const onLeave = () => { P.inside = false; };
-  pointer.addEventListener('pointermove', onMove, { passive: true });
-  pointer.addEventListener('pointerleave', onLeave);
-  let visible = true;
+  const ro = new ResizeObserver(() => { layout(); place(); frame(); });
+  ro.observe(host);
+  let visible = true, raf = 0, last = 0;
   const io = new IntersectionObserver(([e]) => (visible = e.isIntersecting));
   io.observe(host);
-
-  let raf = 0;
   const loop = (t: number) => {
     raf = requestAnimationFrame(loop);
+    const dt = Math.min(0.05, (t - (last || t)) / 1000); last = t;
     if (!visible || document.hidden) return;
-    if (!P.inside && t - P.last > 800) ghost(t);
-    P.x += (P.tx - P.x) * 0.16; P.y += (P.ty - P.y) * 0.16;
-    frame(t);
+    step(dt);
+    frame();
   };
-  raf = requestAnimationFrame(loop);
+  if (!reduce) raf = requestAnimationFrame(loop);
 
   return () => {
     cancelAnimationFrame(raf); ro.disconnect(); io.disconnect(); text?.removeEventListener('animationend', settle);
-    pointer.removeEventListener('pointermove', onMove); pointer.removeEventListener('pointerleave', onLeave);
+    subs.forEach(([el, e, f]) => el.removeEventListener(e as string, f as EventListener));
     canvas.remove();
   };
 }

@@ -1,5 +1,7 @@
 ---
-// Square-cell grid band: lines draw in, then tag, heading and the stat cells; figures roll in.
+// Square-cell grid band: lines draw in, then tag and heading; each stat cell opens like the site's window (an
+// accent line draws along its top, the cell opens down from it, its pixel in the corner), one after the other, and
+// its figure rolls in. Triggered once when the band scrolls in.
 // The page grid: lines on the frame (the thread rides one) and on the margin, where the title, the text of
 // every section and the stat row start. Stats in one row of equal columns, margin line to margin line. Baselines sit on the horizontal lines (text-box trim + rows of one cell).
 import Headline from '@/components/ui/Headline.astro';
@@ -8,10 +10,10 @@ import Seam from '@/components/ui/Seam.astro';
 import Tag from '@/components/ui/Tag.astro';
 import type { KpiBlock } from '@/lib/types';
 
-interface Props { block: KpiBlock }
-const { block } = Astro.props;
+interface Props { block: KpiBlock; lk?: Record<string, string | undefined> }
+const { block, lk } = Astro.props;
 ---
-<section class="kpi" data-inview style={`--k:${block.stats.length}`} aria-labelledby={`${block._key}-h`}>
+<section class="kpi" data-inview data-start="top 85%" style={`--k:${block.stats.length}`} aria-labelledby={`${block._key}-h`} {...lk}>
   <Seam />
   <div class="kpi__grid" aria-hidden="true"></div>
   <div class="wrap kpi__in">
@@ -20,8 +22,8 @@ const { block } = Astro.props;
   </div>
   <div class="wrap">
     <ul role="list" class="kpi__cells" data-brackets>
-      {block.stats.map((s) => (
-        <li><Odometer value={s.value} /><span class="small muted">{s.label}</span></li>
+      {block.stats.map((s, i) => (
+        <li style={`--w:${i}`}><div class="kpi__w"><Odometer value={s.value} /><span class="small muted">{s.label}</span></div></li>
       ))}
     </ul>
   </div>
@@ -76,8 +78,6 @@ const { block } = Astro.props;
     grid-auto-rows: calc(var(--cell) * 3);
     margin-top: var(--cell);
     margin-left: calc(var(--kx) - var(--margin) - var(--tx));
-    border-top: 1px solid var(--border);
-    border-left: 1px solid var(--border);
 
     // One row: at least ~150px tall (figure + a two-line caption), rounded up to whole cells so rows still end on lines.
     @include mq(md) {
@@ -85,19 +85,44 @@ const { block } = Astro.props;
       grid-auto-rows: round(up, max(calc(var(--cell) * 3), 9.5rem), var(--cell));
     }
 
-    // Figure at the top, caption on the bottom edge: captions line up across the row whatever their length.
-    li {
-      display: grid;
-      align-content: space-between;
-      gap: var(--space-2);
-      padding: var(--space-3);
-      overflow-wrap: anywhere;
+    // Each stat is a window: the li holds the opening line, .kpi__w the frame (its borders overlap the
+    // neighbours' by 1px, so the row reads as one hairline grid), the figure at the top, the caption on the bottom
+    // edge (captions line up across the row whatever their length), the pixel in the corner.
+    li { position: relative; margin: 0 -1px -1px 0; }
 
-      @include mq(md) { gap: min(calc(var(--cell) / 2), var(--space-4)); padding: min(calc(var(--cell) / 2), var(--space-5)); }
+    li::before {
+      content: '';
+      position: absolute;
+      inset: 0 0 auto;
+      z-index: 1;
+      height: 1px;
+      background: var(--accent);
+      transform: scaleX(0);
+      transform-origin: left;
+    }
+  }
 
-      background: var(--bg);
-      border-right: 1px solid var(--border);
-      border-bottom: 1px solid var(--border);
+  .kpi__w {
+    position: relative;
+    display: grid;
+    align-content: space-between;
+    gap: var(--space-2);
+    height: 100%;
+    padding: var(--space-3);
+    overflow-wrap: anywhere;
+    background: var(--bg);
+    border: 1px solid var(--border);
+
+    @include mq(md) { gap: min(calc(var(--cell) / 2), var(--space-4)); padding: min(calc(var(--cell) / 2), var(--space-5)); }
+
+    &::before {
+      content: '';
+      position: absolute;
+      top: -1px;
+      left: -1px;
+      width: 7px;
+      height: 7px;
+      background: var(--accent);
     }
   }
 
@@ -105,13 +130,27 @@ const { block } = Astro.props;
     .kpi__grid::before { transition: clip-path 1.6s var(--ease-soft) 0.2s; }
     .kpi__grid::after { transition: clip-path 1.3s var(--ease-move) 0.3s; }
 
-    .kpi__in > :global(.kpi__h), .kpi__cells { transition: opacity 1s var(--ease-soft) 1.05s, translate var(--duration-slow) var(--ease-move) 1.05s; }
-    .kpi__cells { transition-delay: 1.2s; }
+    .kpi__in > :global(.kpi__h) { transition: opacity 0.8s var(--ease-soft) 0.15s, translate var(--duration-slow) var(--ease-move) 0.15s; }
+
+    // Window i: its line draws at --at, the cell opens from it 0.2s later (the line fades as it does), the figure
+    // rolls once it is open.
+    .kpi__cells li {
+      --at: calc(0.3s + var(--w) * 0.15s);
+      --odo-at: calc(var(--at) + 0.35s);
+      --odo-dur: 1s;
+
+      &::before { transition: transform 0.3s var(--ease-move) var(--at), opacity 0.3s var(--ease-soft) calc(var(--at) + 0.55s); }
+    }
+
+    .kpi__w { clip-path: inset(-8px); transition: clip-path 0.45s var(--ease-move) calc(var(--at) + 0.2s); } // -8px: room for the pixel
+
+    .kpi:global(.is-in) .kpi__cells li::before { transform: scaleX(1); opacity: 0; }
 
     :global(.js) .kpi:not(:global(.is-in)) {
       .kpi__grid::before { clip-path: inset(0 0 100% 0); }
       .kpi__grid::after { clip-path: inset(0 100% 0 0); }
-      .kpi__in > :global(.kpi__h), .kpi__cells { opacity: 0; translate: 0 12px; }
+      .kpi__in > :global(.kpi__h) { opacity: 0; translate: 0 12px; }
+      .kpi__w { clip-path: inset(-8px -8px 100%); }
     }
   }
 </style>

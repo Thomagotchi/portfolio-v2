@@ -6,11 +6,11 @@ import Seam from '@/components/ui/Seam.astro';
 import Tag from '@/components/ui/Tag.astro';
 import type { StackBlock } from '@/lib/types';
 
-interface Props { block: StackBlock }
-const { block } = Astro.props;
+interface Props { block: StackBlock; lk?: Record<string, string | undefined> }
+const { block, lk } = Astro.props;
 const id = `${block._key}-h`;
 ---
-<section class="section stk" aria-labelledby={id}>
+<section class="section stk" aria-labelledby={id} {...lk}>
   <Seam />
   <div class="wrap stk__in">
     <div class="stk__head">

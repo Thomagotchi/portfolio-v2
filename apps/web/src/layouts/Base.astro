@@ -53,6 +53,7 @@ const graph = [
     <JsonLd graph={graph} />
   </head>
   <body>
+    <div class="pt" aria-hidden="true"></div> {/* page curtain, first so it covers from the first paint */}
     <a class="skip-link" href="#main">{t.skip}</a>
     <Header site={site} alt={alt} />
     <main id="main" tabindex="-1">

@@ -1,16 +1,18 @@
 ---
 // Offers index: number · title · meta rows; hairlines draw in and rows rise on enter.
 // Hover: a 2px accent bar slides in before the title. Rows link only when an href is set.
+// With motion: stacked cards instead. Each offer is a large card pinned under the header; the next one slides over
+// it while it steps back and dims (scrubbed). Cards alternate the section's theme and the other one.
 import Button from '@/components/ui/Button.astro';
 import Tag from '@/components/ui/Tag.astro';
 import Seam from '@/components/ui/Seam.astro';
 import { langOf, localize } from '@/i18n';
 import type { OffersBlock } from '@/lib/types';
 
-interface Props { block: OffersBlock }
-const { block } = Astro.props;
+interface Props { block: OffersBlock; lk?: Record<string, string | undefined> }
+const { block, lk } = Astro.props;
 ---
-<section class="section of" id={block.anchor} aria-label={block.label ?? 'Offers'}>
+<section class="section of" id={block.anchor} aria-label={block.label ?? 'Offers'} {...lk}>
   <Seam />
   <div class="wrap of__in">
     {block.label && <Tag>{block.label}</Tag>}
@@ -18,9 +20,9 @@ const { block } = Astro.props;
       {block.items.map((o, i) => {
         const R = o.href ? 'a' : 'div';
         return (
-          <li style={`--d:${i * 0.15}s`}>
+          <li style={`--d:${i * 0.15}s;--i:${i}`}>
             <R class="ix" href={o.href && localize(o.href, langOf(Astro.currentLocale))}>
-              <span class="ix__n" aria-hidden="true">{String(i + 1).padStart(2, '0')}</span>
+              <span class="ix__n" aria-hidden="true">{String(i + 1).padStart(2, '0')}<span class="ix__of"> / {String(block.items.length).padStart(2, '0')}</span></span>
               <h3 class="ix__t">{o.title}</h3>
               {o.meta && <p class="ix__m">{o.meta}</p>}
             </R>
@@ -33,6 +35,28 @@ const { block } = Astro.props;
     ) : null}
   </div>
 </section>
+
+<script>
+  import { ScrollTrigger, reduceMotion } from '@/scripts/gsap';
+
+  // Stacked cards: as each card arrives at its resting place, the one before steps back and dims.
+  if (!reduceMotion()) {
+    for (const list of document.querySelectorAll<HTMLElement>('.of__rows')) {
+      list.classList.add('is-stack');
+      const cards = [...list.children] as HTMLElement[];
+      // Every other card takes the opposite theme (only here: the cards have no background as plain rows).
+      const other = list.closest<HTMLElement>('[data-theme]')?.dataset.theme === 'light' ? 'dark' : 'light';
+      cards.forEach((c, i) => { if (i % 2) c.dataset.theme = other; });
+      cards.slice(1).forEach((card, i) => {
+        const prev = cards[i];
+        ScrollTrigger.create({
+          trigger: card, start: 'top bottom', end: () => `top ${parseFloat(getComputedStyle(card).top) || 0}px`,
+          onUpdate: (s) => prev.style.setProperty('--k', s.progress.toFixed(3)),
+        });
+      });
+    }
+  }
+</script>
 
 <style lang="scss">
   .of__in {
@@ -105,6 +129,56 @@ const { block } = Astro.props;
 
     @include mq(md) { flex-flow: row wrap; }
   }
+
+  // Stacked cards (set by the script, so never without JS or with reduced motion): big cards, sticky under the
+  // header with a small step each, the previous one scaled back and dimmed by --k.
+  .of__rows:global(.is-stack) {
+    display: grid;
+    gap: var(--space-block);
+    margin-left: 0;
+    border-bottom: 0;
+
+    li {
+      position: sticky;
+      top: calc(var(--header-h) + var(--space-5) + var(--i) * var(--space-3));
+      min-height: min(62svh, 520px);
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      scale: calc(1 - var(--k, 0) * 0.05);
+      filter: brightness(calc(1 - var(--k, 0) * 0.3));
+      transform-origin: top center;
+
+      &::before { display: none; }
+    }
+
+    .ix {
+      grid-template-columns: minmax(0, 1fr);
+      align-content: space-between;
+      height: 100%;
+      min-height: inherit;
+      padding: var(--space-card);
+      gap: var(--space-5);
+    }
+
+    .ix__t {
+      @include text(h1);
+
+      text-wrap: balance;
+    }
+
+    .ix__m {
+      grid-column: 1;
+      text-align: left;
+
+      @include text(lede);
+    }
+
+    .ix > * { opacity: 1; translate: none; }
+  }
+
+  .ix__of { display: none; }
+  .is-stack .ix__of { display: inline; }
 
   @include motion {
     .of__rows li::before { transition: transform 1.2s var(--ease-move) var(--d); }

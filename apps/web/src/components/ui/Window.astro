@@ -2,7 +2,8 @@
 // Window (DA motion "window open"): the mark grows into a 1px frame with the notch, its pixel keeps the corner
 // and turns red; the body (canvas, cover, message) sits 3px inside, cut to the same notch. One clip-path per
 // layer, no layout. Absolutely positioned: the parent sets the box (and --win-inset).
-//   load   CSS keyframes at first paint (above the fold, no JS: the hero).
+//   load   CSS keyframes at first paint (above the fold, no JS: the hero, a case study's cover); the body opens
+//          with the frame.
 //   view   opens when it scrolls in (.is-in from scripts/inview.ts); removing .is-in closes it into the mark.
 //   static already open; the pixel shows only with .is-home (404: the pixel is away until dragged back).
 interface Props { mode?: 'load' | 'view' | 'static'; manual?: boolean; class?: string }
@@ -19,6 +20,10 @@ const { mode = 'view', manual = false, class: cls } = Astro.props;
   $shut: ring(50%, -40px, 50%, 40px, 16px, 28px, 40px);
   $px-open: square(0%, 0, 7px);
   $px-shut: square(50%, -40px, 16px);
+
+  // The body sits 3px inside the window: offsets from 0% shift by -3px, from 100% by +3px, from 50% not at all.
+  $body-open: hole(0%, -3px, 100%, 3px, 1px, 13px, 0px);
+  $body-shut: hole(50%, -40px, 50%, 40px, 16px, 28px, 40px);
 
   .win {
     position: absolute;
@@ -42,7 +47,7 @@ const { mode = 'view', manual = false, class: cls } = Astro.props;
   .win__body {
     position: absolute;
     inset: 3px;
-    clip-path: polygon(8px 0, 100% 0, 100% 100%, 0 100%, 0 8px, 8px 8px);
+    clip-path: $body-open;
     pointer-events: auto;
   }
 
@@ -51,6 +56,7 @@ const { mode = 'view', manual = false, class: cls } = Astro.props;
     .win--load {
       .win__frame { animation: win-open var(--duration-hero) var(--ease-move) 0.1s both, win-tone 1.2s var(--ease-soft) 0.5s both; }
       .win__px { animation: px-open var(--duration-hero) var(--ease-move) 0.1s both, px-tone var(--duration-base) var(--ease-soft) 1s both; }
+      .win__body { animation: body-open var(--duration-hero) var(--ease-move) 0.1s both; } // the frame's hole, in step: a mask over the content
     }
   }
 
@@ -61,6 +67,9 @@ const { mode = 'view', manual = false, class: cls } = Astro.props;
   @keyframes px-open { from { clip-path: $px-shut; } }
 
   @keyframes px-tone { from { background: var(--text); } }
+
+  // clip-path, not opacity: an image inside stays the LCP from the first paint.
+  @keyframes body-open { from { clip-path: $body-shut; } }
 
   // view: transitions between the two states, so the same element opens and closes.
   @include motion {

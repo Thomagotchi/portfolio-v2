@@ -23,7 +23,7 @@ const fr = {
     copiedSr: (addr: string) => `${addr} copiée dans le presse-papiers`,
   },
 
-  work: { filter: 'Filtrer les projets', all: 'Tous', view: 'Voir le projet', live: 'Voir le site' },
+  work: { filter: 'Filtrer les projets', all: 'Tous', view: 'Voir le projet', live: 'Voir le site', next: 'Le prochain, c’est le vôtre ?', start: 'Lancer un projet' },
 
   case: {
     results: 'Résultats',
@@ -166,7 +166,7 @@ const en: Ui = {
     copiedSr: (addr) => `${addr} copied to the clipboard`,
   },
 
-  work: { filter: 'Filter work', all: 'All', view: 'View project', live: 'View live site' },
+  work: { filter: 'Filter work', all: 'All', view: 'View project', live: 'View live site', next: 'Is yours the next one?', start: 'Start a project' },
 
   case: {
     results: 'Results',

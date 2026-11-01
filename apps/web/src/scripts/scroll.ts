@@ -14,11 +14,17 @@ export async function initScroll() {
   gsap.ticker.lagSmoothing(0);
 }
 
-export function scrollTo(target: string | number | HTMLElement) {
-  if (lenis) return lenis.scrollTo(target);
-  const el = typeof target === 'string' ? document.querySelector(target) : target;
-  if (typeof el === 'number') window.scrollTo({ top: el });
-  else el?.scrollIntoView();
+/** Scrolls to an element, a selector or a position; resolves once there (Lenis' duration, or a moment natively). */
+export function scrollTo(target: string | number | HTMLElement, opts: { duration?: number } = {}): Promise<void> {
+  return new Promise((done) => {
+    const t = setTimeout(done, ((opts.duration ?? 1.2) + 0.3) * 1000); // Lenis skips onComplete when already there
+    const end = () => { clearTimeout(t); done(); };
+    if (lenis) { lenis.scrollTo(target, { ...opts, onComplete: end }); return; }
+    const el = typeof target === 'string' ? document.querySelector(target) : target;
+    if (typeof el === 'number') window.scrollTo({ top: el, behavior: reduceMotion() ? 'auto' : 'smooth' });
+    else el?.scrollIntoView({ behavior: reduceMotion() ? 'auto' : 'smooth' });
+    clearTimeout(t); setTimeout(done, reduceMotion() ? 0 : 600);
+  });
 }
 
 /** Modals, menus: lock and unlock page scroll. */
